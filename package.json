@@ -1,0 +1,19 @@
+{
+  "name": "sweets-and-slimes",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sweets & Slimes 〜お菓子の工場とスイーツ・ロケット発射計画〜",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide": "^0.460.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}
