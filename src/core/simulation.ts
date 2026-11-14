@@ -121,6 +121,17 @@ export function placeBuilding(
   if (tile.isRocketSilo) return false;
 
   const def = BUILDINGS[type];
+  if (def.unlockPhase > state.rocket.phase) {
+    addFloatingText(
+      state,
+      x + 0.5,
+      y + 0.2,
+      `🔒 Phase ${def.unlockPhase} で解放されます!`,
+      '#F59E0B',
+      0.95
+    );
+    return false;
+  }
   if (type === 'harvester' && !tile.resource) {
     addFloatingText(state, x + 0.5, y + 0.2, '資源の上に置いてね!', '#FB7185', 0.9);
     return false;
@@ -342,7 +353,7 @@ export function checkRocketPhaseProgress(state: GameState): void {
 
 export function startRocketLaunchSequence(state: GameState): void {
   if (state.rocket.launching || state.rocket.launched) return;
-  state.rocket.phase = 5;
+  state.rocket.phase = ROCKET_PHASES.length;
   state.rocket.launching = true;
   state.rocket.launchCountdown = 10;
   audio.playPhaseUp();
@@ -399,7 +410,7 @@ function findMatchingRecipeForMachine(
 function doesMachineAcceptItem(b: BuildingInstance, itemId: ItemId): boolean {
   const list = RECIPES_BY_MACHINE[b.type];
   if (!list) return false;
-  if ((b.inputBuffer[itemId] ?? 0) >= 4) return false;
+  if ((b.inputBuffer[itemId] ?? 0) >= 16) return false;
 
   if (b.selectedRecipeId) {
     const r = list.find((rec) => rec.id === b.selectedRecipeId);
@@ -1069,10 +1080,7 @@ function updateParticles(state: GameState, dt: number): void {
   }
 }
 
-export function stepSimulation(state: GameState, rawDt: number): void {
-  const dt = Math.min(0.05, Math.max(0, rawDt));
-  if (state.paused) return;
-
+function stepSimulationSingle(state: GameState, dt: number): void {
   state.time += dt;
   state.stats.playTimeSec += dt;
 
@@ -1148,4 +1156,17 @@ export function stepSimulation(state: GameState, rawDt: number): void {
   }
 
   updateParticles(state, dt);
+}
+
+export function stepSimulation(state: GameState, rawDt: number): void {
+  if (state.paused) return;
+  const speed = state.simSpeed || 1;
+  const clampedFrameDt = Math.min(0.05, Math.max(0, rawDt));
+  const totalDt = clampedFrameDt * speed;
+  const maxStep = 0.025;
+  const steps = Math.max(1, Math.ceil(totalDt / maxStep));
+  const subDt = totalDt / steps;
+  for (let i = 0; i < steps; i++) {
+    stepSimulationSingle(state, subDt);
+  }
 }

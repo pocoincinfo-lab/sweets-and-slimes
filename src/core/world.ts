@@ -133,25 +133,29 @@ export function createInitialGameState(): GameState {
     tiles.push(row);
   }
 
-  // Starter resource nodes around the central silo (guaranteed accessible & scenic)
-  paintPatch(tiles, 22, 29, 2.3, 'wheat', rand);
-  paintPatch(tiles, 22, 33, 2.3, 'sugar', rand);
-  paintPatch(tiles, 28, 22, 2.5, 'milk', rand);
-  paintPatch(tiles, 39, 25, 2.5, 'berry', rand);
-  paintPatch(tiles, 39, 36, 2.5, 'cacao', rand);
-  paintPatch(tiles, 30, 41, 2.4, 'sugar', rand);
-  paintPatch(tiles, 34, 41, 2.4, 'wheat', rand);
+  // Starter resource nodes around the central silo (large clusters for multi-harvester scaling)
+  paintPatch(tiles, 21, 29, 3.3, 'wheat', rand);
+  paintPatch(tiles, 21, 34, 3.3, 'sugar', rand);
+  paintPatch(tiles, 28, 21, 3.5, 'milk', rand);
+  paintPatch(tiles, 40, 24, 3.5, 'berry', rand);
+  paintPatch(tiles, 40, 37, 3.5, 'cacao', rand);
+  paintPatch(tiles, 29, 42, 3.4, 'sugar', rand);
+  paintPatch(tiles, 35, 42, 3.4, 'wheat', rand);
 
-  // Outer expansion patches
+  // Outer megapatches for Factorio-scale late-game factories
   const outerPatches: Array<{ cx: number; cy: number; r: number; res: ResourceNode }> = [
-    { cx: 14, cy: 16, r: 3.1, res: 'wheat' },
-    { cx: 49, cy: 15, r: 3.0, res: 'sugar' },
-    { cx: 15, cy: 48, r: 3.0, res: 'berry' },
-    { cx: 49, cy: 48, r: 3.1, res: 'cacao' },
-    { cx: 48, cy: 31, r: 2.8, res: 'milk' },
-    { cx: 14, cy: 31, r: 2.8, res: 'berry' },
-    { cx: 32, cy: 12, r: 2.8, res: 'cacao' },
-    { cx: 31, cy: 52, r: 2.8, res: 'milk' },
+    { cx: 13, cy: 15, r: 4.1, res: 'wheat' },
+    { cx: 50, cy: 15, r: 4.0, res: 'sugar' },
+    { cx: 14, cy: 49, r: 4.0, res: 'berry' },
+    { cx: 50, cy: 49, r: 4.1, res: 'cacao' },
+    { cx: 49, cy: 31, r: 3.8, res: 'milk' },
+    { cx: 13, cy: 31, r: 3.8, res: 'berry' },
+    { cx: 32, cy: 11, r: 3.8, res: 'cacao' },
+    { cx: 31, cy: 53, r: 3.8, res: 'milk' },
+    { cx: 10, cy: 8, r: 3.5, res: 'sugar' },
+    { cx: 54, cy: 8, r: 3.5, res: 'wheat' },
+    { cx: 8, cy: 55, r: 3.5, res: 'cacao' },
+    { cx: 55, cy: 55, r: 3.6, res: 'berry' },
   ];
   for (const p of outerPatches) {
     paintPatch(tiles, p.cx, p.cy, p.r, p.res, rand);
@@ -198,6 +202,7 @@ export function createInitialGameState(): GameState {
     peacefulMode: false,
     paused: false,
     muted: false,
+    simSpeed: 1,
     camera: {
       x: 29.5,
       y: 31.8,

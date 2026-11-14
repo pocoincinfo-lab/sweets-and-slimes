@@ -682,8 +682,32 @@ export class GameRenderer {
       ctx.stroke();
     }
 
-    // Phase 4+: Strawberry Shortcake Nose Cone
+    // Phase 4+: Patisserie Decorative Ring
     if (phase >= 4) {
+      ctx.fillStyle = '#A78BFA';
+      drawRoundedRect(ctx, -0.78, -0.25, 1.56, 0.28, 0.12);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Phase 5+: Composite Candy Hull Skirt
+    if (phase >= 5) {
+      ctx.fillStyle = '#FBCFE8';
+      drawRoundedRect(ctx, -1.08, 0.05, 2.16, 0.35, 0.14);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Phase 6+: Pancake Booster Glow Ring
+    if (phase >= 6) {
+      ctx.fillStyle = '#FDE047';
+      drawRoundedRect(ctx, -0.58, -1.35, 1.16, 0.2, 0.08);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Phase 7+: Strawberry Shortcake Nose Cone & Macaron Dish
+    if (phase >= 7) {
       ctx.fillStyle = '#FFFDF9';
       ctx.beginPath();
       ctx.moveTo(-0.75, -1.45);
@@ -705,12 +729,22 @@ export class GameRenderer {
       ctx.stroke();
     }
 
-    // Phase 5+: Star Engine Glow
-    if (phase >= 5 || state.rocket.launching || state.rocket.launched) {
-      const glow = 0.22 + Math.sin(state.time * 12) * 0.06;
+    // Phase 8+: Golden Satellite Wings & Star Engine Glow
+    if (phase >= 8 || state.rocket.launching || state.rocket.launched) {
+      const glow = 0.26 + Math.sin(state.time * 12) * 0.07;
       ctx.fillStyle = '#38BDF8';
       drawStar(ctx, 0, -0.75, glow, glow * 0.45, 5);
       ctx.fill();
+
+      ctx.fillStyle = '#38BDF8';
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 0.06;
+      drawRoundedRect(ctx, -1.35, -1.85, 0.45, 0.28, 0.06);
+      ctx.fill();
+      ctx.stroke();
+      drawRoundedRect(ctx, 0.9, -1.85, 0.45, 0.28, 0.06);
+      ctx.fill();
+      ctx.stroke();
     }
 
     // Cotton-candy jet flame when launching/launched
@@ -948,6 +982,7 @@ export class GameRenderer {
     const def = BUILDINGS[tool];
     const tile = state.tiles[ty][tx];
     const valid =
+      def.unlockPhase <= state.rocket.phase &&
       !tile.isRocketSilo &&
       (tool !== 'harvester' || Boolean(tile.resource));
 

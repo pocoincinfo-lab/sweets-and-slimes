@@ -20,6 +20,7 @@ export interface HudCallbacks {
   onDemoAdvancePhase: () => void;
   onToggleMute: () => void;
   onTogglePause: () => void;
+  onCycleSpeed: () => void;
   onSave: () => void;
   onReset: () => void;
   onDismissVictory: () => void;
@@ -46,6 +47,7 @@ export class GameHud {
   private btnPeaceful!: HTMLButtonElement;
   private btnMute!: HTMLButtonElement;
   private btnPause!: HTMLButtonElement;
+  private btnSpeed!: HTMLButtonElement;
   private btnEncyc!: HTMLButtonElement;
   private btnDemo!: HTMLButtonElement;
   private countdownEl!: HTMLElement;
@@ -80,6 +82,7 @@ export class GameHud {
           <button class="btn btn-amber" id="btn-demo" title="テスト用：現在のフェーズを即納品して次へ">🚀 次Phase</button>
           <button class="btn" id="btn-mute">🔊 音</button>
           <button class="btn" id="btn-pause">⏸️ 停止</button>
+          <button class="btn" id="btn-speed" title="シミュレーション速度切替 (1x / 2x / 5x)">⏩ 1x</button>
           <button class="btn" id="btn-encyc">📖 図鑑</button>
           <button class="btn" id="btn-save">💾 保存</button>
           <button class="btn" id="btn-reset">🔄 初期化</button>
@@ -112,8 +115,8 @@ export class GameHud {
               機械は絶対壊されません！キャノンでおやつを撃つとスライムが風船みたいに膨らんで吹っ飛び、<strong>キラキラ星✨</strong>を落とします！
             </div>
             <div class="modal-step">
-              <strong>3. 目指せ宇宙打ち上げ！</strong><br />
-              中央の発射台にベルトでお菓子パーツを流し込み、5段階の「超巨大スイーツ・ロケット」を打ち上げよう！
+              <strong>3. 本格8段階・巨大工場へ！</strong><br />
+              5階層の本格お菓子工場を組み上げ、8段階を経て「ロケットパーツ100基＆黄金パフェ衛星」を宇宙へ打ち上げよう！
             </div>
           </div>
           <div style="display:flex; justify-content:center; gap:12px;">
@@ -154,6 +157,7 @@ export class GameHud {
     this.btnPeaceful = this.root.querySelector('#btn-peaceful')!;
     this.btnMute = this.root.querySelector('#btn-mute')!;
     this.btnPause = this.root.querySelector('#btn-pause')!;
+    this.btnSpeed = this.root.querySelector('#btn-speed')!;
     this.btnEncyc = this.root.querySelector('#btn-encyc')!;
     this.btnDemo = this.root.querySelector('#btn-demo')!;
     this.countdownEl = this.root.querySelector('#countdown-banner')!;
@@ -169,6 +173,7 @@ export class GameHud {
     this.btnDemo.addEventListener('click', () => this.cb.onDemoAdvancePhase());
     this.btnMute.addEventListener('click', () => this.cb.onToggleMute());
     this.btnPause.addEventListener('click', () => this.cb.onTogglePause());
+    this.btnSpeed.addEventListener('click', () => this.cb.onCycleSpeed());
     this.btnEncyc.addEventListener('click', () => {
       this.encyclopediaOpen = !this.encyclopediaOpen;
       this.lastSideSignature = '';
@@ -282,7 +287,7 @@ export class GameHud {
       <img class="rocket-thumb" src="${this.assets.rocketEmblemUrl}" alt="Rocket" />
       <div class="rocket-info">
         <div class="rocket-title-row">
-          <span class="phase-badge">${state.rocket.launched ? 'COMPLETE' : `Phase ${state.rocket.phase}/5`}</span>
+          <span class="phase-badge">${state.rocket.launched ? 'COMPLETE' : `Phase ${state.rocket.phase}/${ROCKET_PHASES.length}`}</span>
           <span>${state.rocket.launched ? 'スイーツ・ロケット発射完了！' : phaseReq.partName}</span>
         </div>
         <div class="req-chips">${chipsHtml}</div>
@@ -306,6 +311,8 @@ export class GameHud {
     this.btnMute.textContent = state.muted ? '🔇 消音' : '🔊 音';
     this.btnPause.textContent = state.paused ? '▶️ 再開' : '⏸️ 停止';
     this.btnPause.classList.toggle('btn-active', state.paused);
+    this.btnSpeed.textContent = `⏩ ${state.simSpeed}x`;
+    this.btnSpeed.classList.toggle('btn-active', state.simSpeed > 1);
     this.btnEncyc.classList.toggle('btn-active', this.encyclopediaOpen);
     this.btnDemo.disabled = state.rocket.launching || state.rocket.launched;
 
@@ -317,11 +324,24 @@ export class GameHud {
       this.countdownEl.classList.add('hidden');
     }
 
-    // 5. Bottom dock selection + hint strip
+    // 5. Bottom dock selection + lock state + hint strip
     const toolBtns = this.bottomDockEl.querySelectorAll<HTMLButtonElement>('.tool-btn');
     toolBtns.forEach((btn) => {
-      const t = btn.dataset.tool;
+      const t = btn.dataset.tool as BuildingType | 'demolish' | 'inspect' | undefined;
       btn.classList.toggle('active', t === state.selectedTool);
+      if (t && t !== 'demolish' && t !== 'inspect' && BUILDINGS[t]) {
+        const def = BUILDINGS[t];
+        const locked = def.unlockPhase > state.rocket.phase;
+        btn.classList.toggle('locked', locked);
+        const costEl = btn.querySelector('.tool-cost');
+        if (costEl) {
+          costEl.textContent = locked
+            ? `🔒P${def.unlockPhase}`
+            : def.costStars === 0
+              ? '無料'
+              : `${def.costStars}✨`;
+        }
+      }
     });
 
     if (state.selectedTool === 'demolish') {
@@ -330,7 +350,11 @@ export class GameHud {
       this.hintStripEl.textContent = '🔍 確認モード: 機械をクリックしてレシピ変更や生産状況を確認 | スライムクリックでデコピン!';
     } else {
       const def = BUILDINGS[state.selectedTool];
-      this.hintStripEl.textContent = `🛠️ ${def.name} [向き:${DIR_LABELS[state.buildDir]}] — ${def.description} (WASD/右ドラッグ:移動, ホイール:ズーム, R:回転)`;
+      const lockMsg =
+        def.unlockPhase > state.rocket.phase
+          ? ` [🔒 Phase ${def.unlockPhase}で解放]`
+          : '';
+      this.hintStripEl.textContent = `🛠️ ${def.name}${lockMsg} [向き:${DIR_LABELS[state.buildDir]}] — ${def.description} (WASD/右ドラッグ:移動, ホイール:ズーム, R:回転)`;
     }
 
     // 6. Side panel (Encyclopedia or Building Inspector)
@@ -377,7 +401,7 @@ export class GameHud {
           <button class="btn" id="btn-close-side">✕</button>
         </h3>
         <div style="display:flex; gap:6px;">
-          <button class="btn ${this.encyclopediaTab === 'recipes' ? 'btn-pink' : ''}" id="tab-recipes" style="flex:1; justify-content:center;">🍰 全12レシピ</button>
+          <button class="btn ${this.encyclopediaTab === 'recipes' ? 'btn-pink' : ''}" id="tab-recipes" style="flex:1; justify-content:center;">🍰 全${RECIPES.length}レシピ</button>
           <button class="btn ${this.encyclopediaTab === 'slimes' ? 'btn-pink' : ''}" id="tab-slimes" style="flex:1; justify-content:center;">🐾 スライム</button>
         </div>
       `;

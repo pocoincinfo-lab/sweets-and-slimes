@@ -609,7 +609,7 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
     }
 
     case 'star_engine_core': {
-      // Radiant cyan & golden star engine core
+      // Radiant cyan & golden star rocket part core
       const glow = ctx.createRadialGradient(cx, 64, 6, cx, 64, 42);
       glow.addColorStop(0, '#FFFFFF');
       glow.addColorStop(0.45, '#38BDF8');
@@ -631,6 +631,149 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.arc(cx, 64, 11, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      break;
+    }
+
+    case 'sugar_alloy_hull': {
+      // Metallic pink honeycomb composite armor plate
+      ctx.save();
+      ctx.translate(cx, 64);
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const px = Math.cos(a) * 40;
+        const py = Math.sin(a) * 40;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      const hg = ctx.createLinearGradient(-34, -34, 34, 34);
+      hg.addColorStop(0, '#FBCFE8');
+      hg.addColorStop(0.5, '#F472B6');
+      hg.addColorStop(1, '#BE185D');
+      ctx.fillStyle = hg;
+      ctx.fill();
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Inner honeycomb plate & cyan rivets
+      ctx.strokeStyle = '#FFF1F2';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const px = Math.cos(a) * 24;
+        const py = Math.sin(a) * 24;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.fillStyle = '#38BDF8';
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * 30, Math.sin(a) * 30, 3.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
+
+    case 'macaron_cpu': {
+      // Pastel macaron logic board with golden circuit traces
+      ctx.save();
+      ctx.translate(cx, 64);
+      drawRoundedRect(ctx, -38, -38, 76, 76, 14);
+      ctx.fillStyle = '#34D399';
+      ctx.fill();
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Golden PCB traces
+      ctx.strokeStyle = '#FDE047';
+      ctx.lineWidth = 3;
+      for (const p of [-20, 0, 20]) {
+        ctx.beginPath();
+        ctx.moveTo(-34, p);
+        ctx.lineTo(34, p);
+        ctx.moveTo(p, -34);
+        ctx.lineTo(p, 34);
+        ctx.stroke();
+      }
+
+      // Cute pastel purple macaron processor in center
+      ctx.fillStyle = '#A78BFA';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 24, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#DDD6FE';
+      ctx.beginPath();
+      ctx.ellipse(0, -4, 24, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+
+    case 'golden_parfait_satellite': {
+      // Solar-winged golden parfait space satellite
+      ctx.save();
+      ctx.translate(cx, 64);
+
+      // Left & right blue solar wings
+      ctx.fillStyle = '#38BDF8';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3.5;
+      drawRoundedRect(ctx, -54, -14, 30, 28, 5);
+      ctx.fill();
+      ctx.stroke();
+      drawRoundedRect(ctx, 24, -14, 30, 28, 5);
+      ctx.fill();
+      ctx.stroke();
+
+      // Solar grid lines
+      ctx.strokeStyle = '#E0F2FE';
+      ctx.lineWidth = 2;
+      for (const sx of [-44, -34, 34, 44]) {
+        ctx.beginPath();
+        ctx.moveTo(sx, -12);
+        ctx.lineTo(sx, 12);
+        ctx.stroke();
+      }
+
+      // Golden parfait chalice body
+      ctx.fillStyle = '#FACC15';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-22, -16);
+      ctx.lineTo(22, -16);
+      ctx.lineTo(14, 28);
+      ctx.lineTo(-14, 28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cream & strawberry antenna dome
+      ctx.fillStyle = '#FFFDF9';
+      ctx.beginPath();
+      ctx.arc(0, -18, 18, Math.PI, 0);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#E11D48';
+      ctx.beginPath();
+      ctx.arc(0, -34, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
       break;
     }
   }

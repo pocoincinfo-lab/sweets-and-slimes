@@ -1,7 +1,7 @@
 import { GameState } from '../types/game';
 import { createInitialGameState } from './world';
 
-const SAVE_KEY = 'sweets_and_slimes_save_v1';
+const SAVE_KEY = 'sweets_and_slimes_save_v2';
 
 export function saveGameState(state: GameState): boolean {
   try {
@@ -25,6 +25,9 @@ export function loadGameState(): GameState {
     const parsed = JSON.parse(raw) as GameState;
     if (!parsed || !parsed.tiles || !parsed.buildings || !parsed.rocket) {
       return createInitialGameState();
+    }
+    if (!parsed.simSpeed) {
+      parsed.simSpeed = 1;
     }
     return parsed;
   } catch {

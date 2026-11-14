@@ -358,6 +358,11 @@ body,
   box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
 }
 
+.tool-btn.locked {
+  opacity: 0.55;
+  filter: grayscale(0.45);
+}
+
 .tool-swatch {
   width: 24px;
   height: 24px;

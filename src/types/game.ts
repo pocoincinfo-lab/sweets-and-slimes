@@ -15,9 +15,12 @@ export type ItemId =
   | 'tapioca_tea'
   | 'shortcake'
   | 'pancake_tower'
-  | 'star_engine_core';
+  | 'star_engine_core'
+  | 'sugar_alloy_hull'
+  | 'macaron_cpu'
+  | 'golden_parfait_satellite';
 
-export type ItemCategory = 'raw' | 'tier1' | 'tier2' | 'tier3';
+export type ItemCategory = 'raw' | 'tier1' | 'tier2' | 'tier3' | 'tier4';
 
 export type SpecialEffect =
   | 'none'
@@ -209,7 +212,7 @@ export interface RocketPhaseRequirement {
 }
 
 export interface RocketState {
-  phase: number; // 1..5, 6 means completed & launched once
+  phase: number; // 1..8, launching/launched handles completion
   delivered: Partial<Record<ItemId, number>>;
   launching: boolean;
   launchCountdown: number;
@@ -256,6 +259,7 @@ export interface GameState {
   peacefulMode: boolean;
   paused: boolean;
   muted: boolean;
+  simSpeed: 1 | 2 | 5;
   camera: CameraState;
   selectedTool: BuildingType | 'demolish' | 'inspect';
   buildDir: Direction;

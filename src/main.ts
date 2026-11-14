@@ -81,6 +81,17 @@ async function bootstrap(): Promise<void> {
     onTogglePause: () => {
       state.paused = !state.paused;
     },
+    onCycleSpeed: () => {
+      state.simSpeed = state.simSpeed === 1 ? 2 : state.simSpeed === 2 ? 5 : 1;
+      addFloatingText(
+        state,
+        state.camera.x,
+        state.camera.y - 1.2,
+        `⏩ シミュレーション速度 ${state.simSpeed}x`,
+        '#38BDF8',
+        1.05
+      );
+    },
     onSave: () => {
       const ok = saveGameState(state);
       addFloatingText(
@@ -284,6 +295,11 @@ async function bootstrap(): Promise<void> {
             placeBuilding(state, state.selectedTool, tx, ty, state.buildDir);
             lastBeltDragTile = { x: tx, y: ty };
           }
+        }
+      } else if (state.selectedTool !== 'inspect') {
+        // Allow continuous brush placement of harvesters, ovens, mixers, windmills, etc. on empty tiles
+        if (!state.tiles[ty][tx].buildingId) {
+          placeBuilding(state, state.selectedTool, tx, ty, state.buildDir);
         }
       }
     }
