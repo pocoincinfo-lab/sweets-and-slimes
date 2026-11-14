@@ -36,3 +36,9 @@
 - [x] 下部ドックの絵文字アイコンバッジ化 (`.tool-icon`) とカテゴリ区切り線 (`.dock-divider`) 追加 (`src/ui/hud.ts`, `src/style.css`)
 - [x] 左下「🍓 スイーツマップ」(`156×156` Canvas ミニマップ、クリック＆ドラッグでのカメラジャンプ、折りたたみトグル) 実装 (`src/render/renderer.ts`, `src/ui/hud.ts`, `src/main.ts`, `src/style.css`)
 - [x] `npm.cmd run build` 成功（0件エラー）およびブラウザ実機検証・ドキュメント更新・プッシュ完了
+
+## Phase 7: 直感UI・ホバー別窓・コイン経済・80×80有機広域マップ刷新
+- [x] 全施設コイン制（`🪙 おやつコイン`、`costCoins` 2〜160・無料廃止・撤去時100%返金・納品/生産/スライム満腹/毎秒+2基礎収入）実装 (`src/types/game.ts`, `src/data/buildings.ts`, `src/core/simulation.ts`, `src/core/world.ts`, `src/core/storage.ts`)
+- [x] `80×80` 広域マップ拡張・中央工場広場 (`26..54`) 確保・三日月/リボン/尾根状の有機的資源鉱脈 `paintOrganicVein` 生成 (`src/core/world.ts`, `src/core/simulation.ts`, `src/render/renderer.ts`, `src/main.ts`)
+- [x] 文字数を削ぎ落としたアイコン中心UI（`#hint-strip` / `.minimap-legend` 廃止、アイコン中心ロケットチップ、3ピルステータス、アイコン操作バー、名称省略ドック）＋別窓ホバー解説（`#hover-popover`）実装 (`src/ui/hud.ts`, `src/style.css`, `src/main.ts`)
+- [x] `npm.cmd run build` 成功（`376ms`, 0件エラー）およびブラウザ実機検証（コイン増減・別窓ホバー・UI重なり＆コンソールエラー0件）完了・プッシュ
