@@ -13,19 +13,19 @@
 
 ## Phase 3: コアエンジン・ゲームデータ実装
 - [x] 型定義（`src/types/game.ts`）を作成する
-- [x] 全17種のおやつ・素材データ（`src/data/items.ts`）を作成する
-- [x] 生産レシピ（`src/data/recipes.ts`）と12種の建物定義（`src/data/buildings.ts`）を作成する
+- [x] 全20種のおやつ・素材データ（`src/data/items.ts`）を作成する
+- [x] 5階層ピラミッド生産レシピ15種（`src/data/recipes.ts`）と段階アンロック付き12種の建物定義（`src/data/buildings.ts`）を作成する
 - [x] Web Audio API プロシージャル効果音エンジン（`src/core/audio.ts`）を実装する
-- [x] `64x64` マップ生成とスターター工場自動配置（`src/core/world.ts`）を実装する
-- [x] ベルト物流・加工・腹ペコスライム膨張＆ボヨヨン連鎖防衛・5段階スイーツロケット発射ロジック（`src/core/simulation.ts`）を実装する
+- [x] `64x64` 大規模鉱脈マップ生成とスターター工場自動配置（`src/core/world.ts`）を実装する
+- [x] ベルト物流・加工・腹ペコスライム膨張＆ボヨヨン連鎖防衛・8段階スイーツロケット発射ロジック・倍速サブステップ実行（`src/core/simulation.ts`）を実装する
 
 ## Phase 4: レンダリング・UI統合・セーブ機能
 - [x] アセット透過・バッジ読み込みローダー（`src/render/assetLoader.ts`）を実装する
 - [x] OffscreenCanvas スプライトベイク処理（`src/render/spriteBake.ts`）を実装する
-- [x] ぷにぷにアニメ・ロケット段階描画・綿あめ打ち上げ演出付き Canvas レンダラー（`src/render/renderer.ts`）を実装する
-- [x] グラスモーフィズム UI・レシピ図鑑・セーブ/ロード・打ち上げモーダル（`src/ui/hud.ts`, `src/style.css`, `src/main.ts`）を実装する
+- [x] ぷにぷにアニメ・8段階ロケット＆衛星描画・綿あめ打ち上げ演出付き Canvas レンダラー（`src/render/renderer.ts`）を実装する
+- [x] グラスモーフィズム UI・倍速ボタン・ロックバッジ・図鑑・セーブ/ロード・打ち上げモーダル（`src/ui/hud.ts`, `src/style.css`, `src/main.ts`）を実装する
 
 ## Phase 5: 検証・ドキュメント完了・最終コミット
 - [x] `npm.cmd run build` にて型エラーおよびビルドエラーが 0 件であることを確認する
-- [x] 開発サーバーを起動し、ブラウザ上でカメラ操作・ベルト物流・スライム膨張＆連鎖・ロケット打ち上げ演出・コンソールエラー0件を検証する
+- [x] 開発サーバーを起動し、ブラウザ上で全8フェーズ・15レシピ・倍速切替・スライム防衛・ロケット打ち上げ演出・コンソールエラー0件を検証する
 - [x] `walkthrough.md` と `task.md` を最新化して最終コミット＆プッシュを行う
