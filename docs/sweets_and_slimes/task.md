@@ -48,3 +48,10 @@
 - [x] 右下メニューボタン（`⚙️` `#btn-menu`）＆展開メニューパネル（`#menu-panel`: `#menu-stats`＋図鑑/平和モード/効果音/遊び方/セーブ/次Phase/リセットの7項目、`#side-panel` との相互排他＆重なり防止 `max-height`）実装 (`src/ui/hud.ts`, `src/style.css`)
 - [x] メニュー項目ホバー時の別窓左寄せ配置＆開いた状態での `#btn-menu` ツールチップ抑止 (`src/ui/hud.ts`)
 - [x] `npm.cmd run build` 成功（`355ms`, 0件エラー）およびブラウザ実機検証（3ボタン化・メニュー開閉・バッジ切替・図鑑との相互排他・コンソールエラー0件）完了・プッシュ
+
+## Phase 9: 更地スタート・5段階チュートリアル＆段階アンロック・メニュー右下隅固定
+- [x] 初期配置施設の全廃（更地スタート）、初期カメラ/コイン (`250🪙`) /Phase 1要求調整、および `tutorialStep` 状態とセーブキー (`v4`) 移行 (`src/types/game.ts`, `src/core/world.ts`, `src/core/storage.ts`, `src/data/rocket.ts`)
+- [x] 5段階インタラクティブ・チュートリアル進行ロジック（採掘機 → ベルト → 風車発電機 → オーブン＆クッキー → スライム給餌防衛）、チュートリアル中の自動ウェーブ待機、段階的ツール解放 `isBuildingUnlockedInTutorial` 実装 (`src/core/simulation.ts`, `src/main.ts`)
+- [x] キャンバス上の誘導ハイライト・点滅矢印 `drawTutorialGuide`、画面上部チュートリアルカード `#tutorial-card`（場所フォーカス／スキップ付き）、初期ドック1施設化、および `#welcome-modal` 初期非表示化 (`src/render/renderer.ts`, `src/ui/hud.ts`, `src/style.css`)
+- [x] 右下メニューボタン（`⚙️` `#btn-menu` / `.menu-corner`）の画面真右下隅固定 (`position: fixed; right: 8px; bottom: 8px;`) (`src/style.css`, `src/ui/hud.ts`)
+- [x] `npm.cmd run build` 成功（`364ms`, 0件エラー）およびブラウザ実機検証（更地スタート・1施設ドック・STEP 1〜4進行・スキップ全解放・右下隅メニュー配置・コンソールエラー0件）完了・プッシュ
