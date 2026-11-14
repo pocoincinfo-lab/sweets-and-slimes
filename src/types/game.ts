@@ -267,5 +267,6 @@ export interface GameState {
   inspectedBuildingId: string | null;
   productionHistory: number[]; // timestamps of recent productions for items/min
   unlockedModalDismissed: boolean;
+  tutorialStep: number;
   time: number;
 }

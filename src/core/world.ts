@@ -108,22 +108,6 @@ export function createBuildingInstance(
   };
 }
 
-function placeInitialBuilding(
-  state: GameState,
-  type: BuildingType,
-  x: number,
-  y: number,
-  dir: Direction,
-  selectedRecipeId: string | null = null
-): void {
-  if (!inBounds(x, y)) return;
-  const tile = state.tiles[y][x];
-  if (tile.isRocketSilo || tile.buildingId) return;
-  const b = createBuildingInstance(type, x, y, dir, selectedRecipeId);
-  state.buildings[b.id] = b;
-  tile.buildingId = b.id;
-}
-
 export function createInitialGameState(): GameState {
   const rand = seededRand(20261114);
   const tiles: Tile[][] = [];
@@ -311,10 +295,11 @@ export function createInitialGameState(): GameState {
     }
   }
 
-  // Guarantee exact nodes at the western plaza edge for starter cookie line
+  // Guarantee accessible starter wheat & sugar veins right along the western plaza edge (x = 25)
   tiles[38][25].resource = 'wheat';
-  tiles[40][25].resource = 'sugar';
-  tiles[43][25].resource = 'sugar';
+  tiles[39][25].resource = 'wheat';
+  tiles[41][25].resource = 'sugar';
+  tiles[42][25].resource = 'sugar';
 
   const state: GameState = {
     mapWidth: MAP_SIZE,
@@ -333,18 +318,18 @@ export function createInitialGameState(): GameState {
       launchLiftY: 0,
       launched: false,
     },
-    coins: 600,
-    starSugar: 4,
+    coins: 250,
+    starSugar: 0,
     stats: {
       totalProduced: 0,
       totalDelivered: 0,
       slimesFed: 0,
       maxChain: 0,
-      starsEarned: 4,
+      starsEarned: 0,
       playTimeSec: 0,
     },
     wave: {
-      timer: 9,
+      timer: 30,
       interval: 26,
       waveNumber: 0,
       nextSpawnEdge: 3, // West first so starter cannons immediately shine!
@@ -355,60 +340,18 @@ export function createInitialGameState(): GameState {
     muted: false,
     simSpeed: 1,
     camera: {
-      x: 35.5,
+      x: 33.5,
       y: 39.5,
-      zoom: 38,
+      zoom: 40,
     },
-    selectedTool: 'belt',
+    selectedTool: 'harvester',
     buildDir: 1,
     inspectedBuildingId: null,
     productionHistory: [],
     unlockedModalDismissed: false,
+    tutorialStep: 0,
     time: 0,
   };
-
-  // Starter Bakery Line: Wheat + Sugar (x=25) -> Oven (27,39) -> Splitter (29,39) -> Rocket Silo (38,39) + 2 Cannons
-  placeInitialBuilding(state, 'sugar_windmill', 23, 39, 0);
-  placeInitialBuilding(state, 'sugar_windmill', 43, 39, 0);
-
-  // Wheat line -> Oven
-  placeInitialBuilding(state, 'harvester', 25, 38, 1);
-  placeInitialBuilding(state, 'belt', 26, 38, 1);
-  placeInitialBuilding(state, 'belt', 27, 38, 2);
-
-  // Sugar line -> Oven
-  placeInitialBuilding(state, 'harvester', 25, 40, 1);
-  placeInitialBuilding(state, 'belt', 26, 40, 1);
-  placeInitialBuilding(state, 'belt', 27, 40, 0);
-
-  // Oven baking cookies -> Splitter
-  placeInitialBuilding(state, 'oven', 27, 39, 1, 'r_cookie');
-  placeInitialBuilding(state, 'belt', 28, 39, 1);
-  placeInitialBuilding(state, 'splitter', 29, 39, 1);
-
-  // East branch -> Rocket Silo (x = 30..37, y = 39 -> 38,39)
-  for (let bx = 30; bx <= 37; bx++) {
-    placeInitialBuilding(state, 'belt', bx, 39, 1);
-  }
-
-  // North branch -> Upper Cookie Cannon
-  placeInitialBuilding(state, 'belt', 29, 38, 0);
-  placeInitialBuilding(state, 'belt', 29, 37, 0);
-  placeInitialBuilding(state, 'cannon', 29, 36, 3);
-
-  // South branch -> Lower Cookie Cannon
-  placeInitialBuilding(state, 'belt', 29, 40, 2);
-  placeInitialBuilding(state, 'belt', 29, 41, 2);
-  placeInitialBuilding(state, 'cannon', 29, 42, 3);
-
-  // Direct sugar belt across open plaza into Rocket Silo for Phase 1
-  placeInitialBuilding(state, 'harvester', 25, 43, 1);
-  for (let bx = 26; bx <= 36; bx++) {
-    placeInitialBuilding(state, 'belt', bx, 43, 1);
-  }
-  placeInitialBuilding(state, 'belt', 37, 43, 0);
-  placeInitialBuilding(state, 'belt', 37, 42, 0);
-  placeInitialBuilding(state, 'belt', 37, 41, 1);
 
   return state;
 }

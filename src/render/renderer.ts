@@ -7,6 +7,7 @@ import {
   Slime,
 } from '../types/game';
 import { dirDelta, inBounds, MAP_CENTER, MAP_SIZE, SILO_MAX, SILO_MIN } from '../core/world';
+import { isBuildingUnlockedInTutorial } from '../core/simulation';
 import { LoadedAssets } from './assetLoader';
 import { SpriteBank } from './spriteBake';
 
@@ -268,6 +269,8 @@ export class GameRenderer {
     if (hoverTile && inBounds(hoverTile.x, hoverTile.y)) {
       this.drawHoverPreview(ctx, state, hoverTile.x, hoverTile.y);
     }
+
+    this.drawTutorialGuide(ctx, state);
 
     ctx.restore();
 
@@ -1015,6 +1018,7 @@ export class GameRenderer {
     const tile = state.tiles[ty][tx];
     const valid =
       def.unlockPhase <= state.rocket.phase &&
+      isBuildingUnlockedInTutorial(tool, state.tutorialStep) &&
       !tile.isRocketSilo &&
       (tool !== 'harvester' || Boolean(tile.resource));
 
@@ -1056,13 +1060,137 @@ export class GameRenderer {
     ctx.restore();
   }
 
+  private drawTutorialGuide(ctx: CanvasRenderingContext2D, state: GameState): void {
+    const step = state.tutorialStep;
+    if (step >= 5) return;
+
+    const pulse = 0.5 + 0.5 * Math.sin(state.time * 4.5);
+
+    const drawPulseTile = (tx: number, ty: number, color: string): void => {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.08 + pulse * 0.04;
+      ctx.fillStyle = `${color}${Math.round(35 + pulse * 45)
+        .toString(16)
+        .padStart(2, '0')}`;
+      ctx.setLineDash([0.2, 0.12]);
+      ctx.lineDashOffset = -state.time * 0.9;
+      drawRoundedRect(ctx, tx + 0.04, ty + 0.04, 0.92, 0.92, 0.16);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawWorldBadge = (wx: number, wy: number, text: string, color: string): void => {
+      ctx.save();
+      ctx.font = '800 0.34px "M PLUS Rounded 1c", sans-serif';
+      const tw = ctx.measureText(text).width;
+      const bw = tw + 0.5;
+      const bh = 0.62;
+      const bx = wx - bw / 2;
+      const by = wy - bh / 2;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.06;
+      drawRoundedRect(ctx, bx, by, bw, bh, 0.25);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#5B3A4D';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, wx, wy + 0.02);
+      ctx.restore();
+    };
+
+    if (step === 0) {
+      drawPulseTile(25, 38, '#EC4899');
+      drawWorldBadge(25.5, 37.05, '⬇ STEP1: ここに⛏️採掘機を置こう！', '#EC4899');
+    } else if (step === 1) {
+      const harv = Object.values(state.buildings).find((b) => b.type === 'harvester');
+      const sx = harv ? harv.x + 1.0 : 26.0;
+      const sy = harv ? harv.y + 0.5 : 38.5;
+      ctx.save();
+      ctx.strokeStyle = '#EC4899';
+      ctx.lineWidth = 0.14;
+      ctx.setLineDash([0.32, 0.2]);
+      ctx.lineDashOffset = -state.time * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(37.6, sy);
+      ctx.stroke();
+      ctx.fillStyle = '#EC4899';
+      ctx.beginPath();
+      ctx.moveTo(38.0, sy);
+      ctx.lineTo(37.4, sy - 0.28);
+      ctx.lineTo(37.4, sy + 0.28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      drawPulseTile(37, Math.floor(sy), '#EC4899');
+      drawWorldBadge(
+        (sx + 38) / 2,
+        sy - 1.05,
+        '➡ STEP2: ➡️ベルトを左ドラッグで🚀発射台へ繋ごう！',
+        '#EC4899'
+      );
+    } else if (step === 2) {
+      drawPulseTile(31, 36, '#10B981');
+      drawWorldBadge(31.5, 35.05, '⬇ STEP3: 空き地に🎡風車発電機を置こう！', '#10B981');
+    } else if (step === 3) {
+      drawPulseTile(25, 41, '#38BDF8');
+      drawPulseTile(28, 40, '#F59E0B');
+      ctx.save();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 0.09;
+      ctx.setLineDash([0.24, 0.18]);
+      ctx.lineDashOffset = -state.time * 1.1;
+      ctx.beginPath();
+      ctx.moveTo(26.0, 41.5);
+      ctx.lineTo(28.5, 41.5);
+      ctx.lineTo(28.5, 40.9);
+      ctx.stroke();
+      ctx.restore();
+      drawWorldBadge(
+        28.5,
+        39.05,
+        '⬇ STEP4: 💎砂糖採掘(25,41)＋🌾小麦 → 🔥オーブン → 🚀発射台!',
+        '#F59E0B'
+      );
+    } else if (step === 4) {
+      const targetSlime = state.slimes[0];
+      if (targetSlime) {
+        ctx.save();
+        ctx.strokeStyle = '#EC4899';
+        ctx.lineWidth = 0.09 + pulse * 0.04;
+        ctx.beginPath();
+        ctx.arc(targetSlime.x, targetSlime.y, 0.85 + pulse * 0.18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        drawWorldBadge(
+          targetSlime.x,
+          targetSlime.y - 1.35,
+          '🐾 スライム接近中！🎯キャノン（またはクリック）でおやつ！',
+          '#EC4899'
+        );
+      }
+      drawPulseTile(29, 36, '#EC4899');
+    }
+  }
+
   private drawWaveEdgeBadge(
     ctx: CanvasRenderingContext2D,
     state: GameState,
     width: number,
     height: number
   ): void {
-    if (state.peacefulMode || state.rocket.launching || state.rocket.launched) return;
+    if (
+      state.tutorialStep < 5 ||
+      state.peacefulMode ||
+      state.rocket.launching ||
+      state.rocket.launched
+    ) {
+      return;
+    }
     const edge: Direction = state.wave.nextSpawnEdge;
     const sec = Math.max(0, Math.ceil(state.wave.timer));
     const label = `🐾 ${sec}秒`;

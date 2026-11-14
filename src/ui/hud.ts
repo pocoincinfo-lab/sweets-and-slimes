@@ -6,6 +6,7 @@ import {
   computePowerStats,
   demolishAt,
   getItemsPerMinute,
+  isBuildingUnlockedInTutorial,
 } from '../core/simulation';
 import { MAP_SIZE, inBounds } from '../core/world';
 import { LoadedAssets } from '../render/assetLoader';
@@ -28,6 +29,7 @@ export interface HudCallbacks {
   onDismissVictory: () => void;
   onSelectRecipe: (buildingId: string, recipeId: string | null) => void;
   onCloseInspect: () => void;
+  onSkipTutorial: () => void;
 }
 
 const DIR_LABELS = ['北 ↑', '東 →', '南 ↓', '西 ←'];
@@ -65,11 +67,12 @@ export class GameHud {
   private encyclopediaOpen = false;
   private encyclopediaTab: 'recipes' | 'slimes' = 'recipes';
   private menuOpen = false;
-  private welcomeOpen = true;
+  private welcomeOpen = false;
   private lastSideSignature = '';
   private lastRocketSignature = '';
   private lastStatsSignature = '';
   private lastMenuStatsSignature = '';
+  private lastTutorialSignature = '';
   private currentRocketPhase = 1;
   private uiHoverActive = false;
   private popoverSource: 'none' | 'ui' | 'world' = 'none';
@@ -77,6 +80,7 @@ export class GameHud {
   // Cached DOM references
   private rocketCardEl!: HTMLElement;
   private statsBarEl!: HTMLElement;
+  private tutorialCardEl!: HTMLElement;
   private btnMenuEl!: HTMLButtonElement;
   private menuPanelEl!: HTMLElement;
   private menuStatsEl!: HTMLElement;
@@ -131,6 +135,7 @@ export class GameHud {
       <div class="countdown-banner hidden" id="countdown-banner"></div>
 
       <div class="middle-area">
+        <div class="glass-panel tutorial-card hidden" id="tutorial-card"></div>
         <div class="glass-panel minimap-card" id="minimap-card" data-tip-kind="ui" data-tip-title="🍓 スイーツマップ (80×80)" data-tip-desc="クリック・ドラッグでカメラを即座に移動できます。🚀基地 / 🟨🌾資源 / 🟧🏭工場 / 🌸🍮スライム">
           <div class="minimap-header">
             <span>🍓 スイーツマップ</span>
@@ -141,58 +146,59 @@ export class GameHud {
           </div>
         </div>
         <div class="glass-panel side-panel hidden" id="side-panel"></div>
-        <div class="menu-corner">
-          <div class="glass-panel menu-panel hidden" id="menu-panel">
-            <div class="menu-header">
-              <span>🍰 メニュー</span>
-              <button class="minimap-toggle" id="btn-close-menu">✕</button>
-            </div>
-            <div class="menu-stats" id="menu-stats">📦 0個/分 ・ 🐾 0匹満腹</div>
-            <div class="menu-list">
-              <button class="menu-item" id="btn-encyc" data-tip-kind="ui" data-tip-title="📖 お菓子＆スライム図鑑" data-tip-desc="全15種類のレシピとスライムの特徴・報酬を確認できます。">
-                <span class="menu-item-icon">📖</span>
-                <span class="menu-item-label">図鑑（レシピ・スライム）</span>
-              </button>
-              <button class="menu-item" id="btn-peaceful" data-tip-kind="ui" data-tip-title="🕊️ 平和モード切替" data-tip-desc="スライムの自動来訪を止めて、自分のペースで工場を組み立てられます。">
-                <span class="menu-item-icon">🕊️</span>
-                <span class="menu-item-label">平和モード</span>
-                <span class="menu-item-badge" id="badge-peaceful">OFF</span>
-              </button>
-              <button class="menu-item" id="btn-mute" data-tip-kind="ui" data-tip-title="🔊 効果音 ON / OFF" data-tip-desc="クリック音や効果音のミュートを切り替えます。">
-                <span class="menu-item-icon" id="icon-mute">🔊</span>
-                <span class="menu-item-label">効果音</span>
-                <span class="menu-item-badge" id="badge-mute">ON</span>
-              </button>
-              <button class="menu-item" id="btn-help" data-tip-kind="ui" data-tip-title="❓ 遊び方ガイド" data-tip-desc="基本操作とロケット発射までの遊び方を表示します。">
-                <span class="menu-item-icon">❓</span>
-                <span class="menu-item-label">遊び方ガイド</span>
-              </button>
-              <button class="menu-item" id="btn-save" data-tip-kind="ui" data-tip-title="💾 手動セーブ" data-tip-desc="現在の工場データをブラウザへ保存します。">
-                <span class="menu-item-icon">💾</span>
-                <span class="menu-item-label">セーブする</span>
-              </button>
-              <button class="menu-item" id="btn-demo" data-tip-kind="ui" data-tip-title="🚀 次Phaseへスキップ（テスト用）" data-tip-desc="現在のフェーズ要求を即座に満たし、次のフェーズへ進みます。">
-                <span class="menu-item-icon">🚀</span>
-                <span class="menu-item-label">次Phaseへ進む</span>
-                <span class="menu-item-badge">テスト用</span>
-              </button>
-              <button class="menu-item" id="btn-reset" data-tip-kind="ui" data-tip-title="🔄 最初からやり直す" data-tip-desc="セーブデータを削除して新しいお菓子惑星でスタートします。">
-                <span class="menu-item-icon">🔄</span>
-                <span class="menu-item-label">最初からやり直す</span>
-              </button>
-            </div>
-          </div>
-          <button class="menu-fab" id="btn-menu" data-tip-kind="ui" data-tip-title="⚙️ メニュー" data-tip-desc="図鑑・設定・セーブ・遊び方などの機能を開きます。">⚙️</button>
-        </div>
       </div>
 
       <div class="bottom-wrap">
         <div class="glass-panel bottom-dock" id="bottom-dock"></div>
       </div>
 
+      <div class="menu-corner">
+        <div class="glass-panel menu-panel hidden" id="menu-panel">
+          <div class="menu-header">
+            <span>🍰 メニュー</span>
+            <button class="minimap-toggle" id="btn-close-menu">✕</button>
+          </div>
+          <div class="menu-stats" id="menu-stats">📦 0個/分 ・ 🐾 0匹満腹</div>
+          <div class="menu-list">
+            <button class="menu-item" id="btn-encyc" data-tip-kind="ui" data-tip-title="📖 お菓子＆スライム図鑑" data-tip-desc="全15種類のレシピとスライムの特徴・報酬を確認できます。">
+              <span class="menu-item-icon">📖</span>
+              <span class="menu-item-label">図鑑（レシピ・スライム）</span>
+            </button>
+            <button class="menu-item" id="btn-peaceful" data-tip-kind="ui" data-tip-title="🕊️ 平和モード切替" data-tip-desc="スライムの自動来訪を止めて、自分のペースで工場を組み立てられます。">
+              <span class="menu-item-icon">🕊️</span>
+              <span class="menu-item-label">平和モード</span>
+              <span class="menu-item-badge" id="badge-peaceful">OFF</span>
+            </button>
+            <button class="menu-item" id="btn-mute" data-tip-kind="ui" data-tip-title="🔊 効果音 ON / OFF" data-tip-desc="クリック音や効果音のミュートを切り替えます。">
+              <span class="menu-item-icon" id="icon-mute">🔊</span>
+              <span class="menu-item-label">効果音</span>
+              <span class="menu-item-badge" id="badge-mute">ON</span>
+            </button>
+            <button class="menu-item" id="btn-help" data-tip-kind="ui" data-tip-title="❓ 遊び方ガイド" data-tip-desc="基本操作とロケット発射までの遊び方を表示します。">
+              <span class="menu-item-icon">❓</span>
+              <span class="menu-item-label">遊び方ガイド</span>
+            </button>
+            <button class="menu-item" id="btn-save" data-tip-kind="ui" data-tip-title="💾 手動セーブ" data-tip-desc="現在の工場データをブラウザへ保存します。">
+              <span class="menu-item-icon">💾</span>
+              <span class="menu-item-label">セーブする</span>
+            </button>
+            <button class="menu-item" id="btn-demo" data-tip-kind="ui" data-tip-title="🚀 次Phaseへスキップ（テスト用）" data-tip-desc="現在のフェーズ要求を即座に満たし、次のフェーズへ進みます。">
+              <span class="menu-item-icon">🚀</span>
+              <span class="menu-item-label">次Phaseへ進む</span>
+              <span class="menu-item-badge">テスト用</span>
+            </button>
+            <button class="menu-item" id="btn-reset" data-tip-kind="ui" data-tip-title="🔄 最初からやり直す" data-tip-desc="セーブデータを削除して新しいお菓子惑星でスタートします。">
+              <span class="menu-item-icon">🔄</span>
+              <span class="menu-item-label">最初からやり直す</span>
+            </button>
+          </div>
+        </div>
+        <button class="menu-fab" id="btn-menu" data-tip-kind="ui" data-tip-title="⚙️ メニュー" data-tip-desc="図鑑・設定・セーブ・遊び方などの機能を開きます。">⚙️</button>
+      </div>
+
       <div class="hover-popover hidden" id="hover-popover"></div>
 
-      <div class="modal-backdrop" id="welcome-modal">
+      <div class="modal-backdrop hidden" id="welcome-modal">
         <div class="modal-card">
           <img class="modal-banner" src="${this.assets.titleBannerUrl}" alt="Sweets & Slimes" />
           <h1 class="modal-title">🍰 Sweets &amp; Slimes 〜スイーツ・ロケット発射計画〜</h1>
@@ -245,6 +251,7 @@ export class GameHud {
 
     this.rocketCardEl = this.root.querySelector('#rocket-card')!;
     this.statsBarEl = this.root.querySelector('#stats-bar')!;
+    this.tutorialCardEl = this.root.querySelector('#tutorial-card')!;
     this.btnMenuEl = this.root.querySelector('#btn-menu')!;
     this.menuPanelEl = this.root.querySelector('#menu-panel')!;
     this.menuStatsEl = this.root.querySelector('#menu-stats')!;
@@ -719,11 +726,16 @@ export class GameHud {
   private buildBottomDock(): void {
     this.bottomDockEl.innerHTML = '';
 
-    const dividerBefore = new Set<BuildingType>(['harvester', 'cannon']);
+    const dividerBefore: Partial<Record<BuildingType, number>> = {
+      harvester: 1,
+      cannon: 2,
+    };
     for (const def of BUILDING_LIST) {
-      if (dividerBefore.has(def.type)) {
+      const minStep = dividerBefore[def.type];
+      if (minStep !== undefined) {
         const div = document.createElement('div');
         div.className = 'dock-divider';
+        div.dataset.tutMinStep = String(minStep);
         this.bottomDockEl.appendChild(div);
       }
 
@@ -873,12 +885,14 @@ export class GameHud {
       this.countdownEl.classList.add('hidden');
     }
 
-    // 5. Bottom dock selection + lock state + rotate arrow
+    // 5. Bottom dock progressive reveal + selection + lock state + rotate arrow
     const toolBtns = this.bottomDockEl.querySelectorAll<HTMLButtonElement>('.tool-btn');
     toolBtns.forEach((btn) => {
       const t = btn.dataset.tool as BuildingType | 'demolish' | 'inspect' | undefined;
       btn.classList.toggle('active', t === state.selectedTool);
       if (t && t !== 'demolish' && t !== 'inspect' && BUILDINGS[t]) {
+        const tutUnlocked = isBuildingUnlockedInTutorial(t, state.tutorialStep);
+        btn.classList.toggle('hidden', !tutUnlocked);
         const def = BUILDINGS[t];
         const locked = def.unlockPhase > state.rocket.phase;
         btn.classList.toggle('locked', locked);
@@ -890,12 +904,18 @@ export class GameHud {
         }
       }
     });
+    const dockDividers = this.bottomDockEl.querySelectorAll<HTMLElement>('.dock-divider');
+    dockDividers.forEach((div) => {
+      const minStep = Number(div.dataset.tutMinStep ?? 0);
+      div.classList.toggle('hidden', state.tutorialStep < minStep);
+    });
     const rotEl = this.bottomDockEl.querySelector('#btn-rotate-dir');
     if (rotEl) {
       rotEl.textContent = DIR_ARROWS[state.buildDir];
     }
 
-    // 6. Side panel (Encyclopedia or Building Inspector) & bottom-right Menu panel
+    // 6. Tutorial card, Side panel & bottom-right Menu panel
+    this.syncTutorialCard(state);
     this.syncSidePanel(state);
     this.syncMenuPanel(state);
 
@@ -914,6 +934,76 @@ export class GameHud {
         this.victoryModalEl.classList.remove('hidden');
       }
     }
+  }
+
+  private syncTutorialCard(state: GameState): void {
+    const step = state.tutorialStep;
+    if (step >= 5) {
+      this.tutorialCardEl.classList.add('hidden');
+      this.lastTutorialSignature = '';
+      return;
+    }
+
+    this.tutorialCardEl.classList.remove('hidden');
+
+    let progressKey = `${step}`;
+    let title = '';
+    let desc = '';
+    let focusPos: [number, number] = [29, 39];
+
+    if (step === 0) {
+      title = 'まずは素材を集めよう！';
+      desc = '下の ⛏️採掘機 を選び、光っている 🌾小麦マス (25,38) に左クリックで置いてみよう！';
+      focusPos = [27, 38.5];
+    } else if (step === 1) {
+      const delivered = Math.min(3, state.stats.totalDelivered);
+      progressKey = `1|${delivered}`;
+      title = 'ベルトでお菓子を運ぼう！';
+      desc = `解放された ➡️おやつベルト を選び、⛏️採掘機の右から中央の 🚀発射台 まで左ドラッグで繋ごう！（納品 ${delivered}/3個）`;
+      focusPos = [32, 38.5];
+    } else if (step === 2) {
+      title = '電気を作ってパワーアップ！';
+      desc = '解放された 🎡風車発電機 を選び、空いている芝生の上に1台置いて工場の電力を増やそう！';
+      focusPos = [31.5, 37.5];
+    } else if (step === 3) {
+      title = '小麦と砂糖でクッキーを焼こう！';
+      desc = '💎砂糖(25,41)も ⛏️採掘機 で掘り、🌾小麦＋💎砂糖を 🔥オーブン へ繋いでクッキーを焼こう！';
+      focusPos = [29.5, 39.5];
+    } else if (step === 4) {
+      title = '腹ペコスライムをおもてなし！';
+      desc = '西からスライムが接近中！🎯キャノン を置いてお菓子を撃つか、スライムを直接クリックして満腹にしよう！';
+      focusPos = [29, 38];
+    }
+
+    if (progressKey === this.lastTutorialSignature) return;
+    this.lastTutorialSignature = progressKey;
+
+    this.tutorialCardEl.innerHTML = `
+      <div class="tutorial-step-badge">STEP ${step + 1}/5</div>
+      <div class="tutorial-body">
+        <div class="tutorial-title">${title}</div>
+        <div class="tutorial-desc">${desc}</div>
+      </div>
+      <div class="tutorial-actions">
+        <button class="btn btn-mint" id="btn-tut-focus">📍 場所を見る</button>
+        <button class="btn" id="btn-tut-skip">スキップ ⏭️</button>
+      </div>
+    `;
+
+    this.tutorialCardEl.querySelector('#btn-tut-focus')!.addEventListener('click', () => {
+      if (state.tutorialStep === 4 && this.latestState?.slimes[0]) {
+        const s = this.latestState.slimes[0];
+        this.cb.onJumpCamera(
+          Math.max(15, Math.min(65, s.x)),
+          Math.max(15, Math.min(65, s.y))
+        );
+      } else {
+        this.cb.onJumpCamera(focusPos[0], focusPos[1]);
+      }
+    });
+    this.tutorialCardEl.querySelector('#btn-tut-skip')!.addEventListener('click', () => {
+      this.cb.onSkipTutorial();
+    });
   }
 
   private syncMenuPanel(state: GameState): void {

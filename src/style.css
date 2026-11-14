@@ -336,15 +336,90 @@ body,
 
 /* Bottom-right menu trigger & popover */
 .menu-corner {
-  position: absolute;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
-  z-index: 10;
+  z-index: 22;
   pointer-events: none;
+}
+
+/* Progressive Tutorial Card */
+.tutorial-card {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 20px));
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid #f472b6;
+  background: rgba(255, 250, 252, 0.92);
+  z-index: 12;
+  animation: popIn 0.25s ease-out;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.tutorial-step-badge {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ec4899, #f59e0b);
+  color: #fff;
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.tutorial-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tutorial-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #db2777;
+}
+
+.tutorial-desc {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.tutorial-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.tutorial-actions .btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  justify-content: center;
 }
 
 .menu-fab {
@@ -525,6 +600,7 @@ body,
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  padding: 0 58px;
 }
 
 .bottom-dock {

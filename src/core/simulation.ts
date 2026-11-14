@@ -110,6 +110,188 @@ export function addFloatingText(
   });
 }
 
+export function isBuildingUnlockedInTutorial(
+  type: BuildingType,
+  tutorialStep: number
+): boolean {
+  if (tutorialStep <= 0) return type === 'harvester';
+  if (tutorialStep === 1) return type === 'harvester' || type === 'belt';
+  if (tutorialStep === 2) {
+    return type === 'harvester' || type === 'belt' || type === 'sugar_windmill';
+  }
+  if (tutorialStep === 3) {
+    return (
+      type === 'harvester' ||
+      type === 'belt' ||
+      type === 'sugar_windmill' ||
+      type === 'oven' ||
+      type === 'splitter' ||
+      type === 'tunnel'
+    );
+  }
+  if (tutorialStep === 4) {
+    return (
+      type === 'harvester' ||
+      type === 'belt' ||
+      type === 'sugar_windmill' ||
+      type === 'oven' ||
+      type === 'splitter' ||
+      type === 'tunnel' ||
+      type === 'cannon' ||
+      type === 'mixer'
+    );
+  }
+  return true;
+}
+
+export function spawnTutorialSlime(state: GameState): void {
+  if (state.slimes.length > 0) return;
+  const x = 21.5;
+  const y = 39.5;
+  const dx = x - MAP_CENTER;
+  const dy = y - MAP_CENTER;
+  const len = Math.hypot(dx, dy) || 1;
+  state.slimes.push({
+    id: genId('s'),
+    type: 'pink_slime',
+    x,
+    y,
+    vx: 0,
+    vy: 0,
+    fed: 0,
+    maxFed: 40,
+    state: 'approaching',
+    slowTimer: 0,
+    stunTimer: 0,
+    wobblePhase: Math.random() * Math.PI * 2,
+    chainCount: 0,
+    squash: 0,
+    originDirX: dx / len,
+    originDirY: dy / len,
+    ridingTimer: 0,
+  });
+}
+
+export function skipTutorial(state: GameState): void {
+  if (state.tutorialStep >= 5) return;
+  state.tutorialStep = 5;
+  addFloatingText(
+    state,
+    state.camera.x,
+    state.camera.y - 1.5,
+    '🎓 チュートリアルをスキップしました！',
+    '#F472B6',
+    1.15
+  );
+}
+
+export function updateTutorialProgress(state: GameState): void {
+  if (state.tutorialStep >= 5) return;
+
+  if (state.tutorialStep === 0) {
+    const hasHarvester = Object.values(state.buildings).some((b) => b.type === 'harvester');
+    if (hasHarvester) {
+      state.tutorialStep = 1;
+      state.selectedTool = 'belt';
+      state.coins += 30;
+      audio.playPhaseUp();
+      addFloatingText(
+        state,
+        25.5,
+        37.5,
+        '🎉 STEP 1達成! +30🪙 ➡️おやつベルト解放!',
+        '#34D399',
+        1.15
+      );
+    }
+  }
+
+  if (state.tutorialStep === 1) {
+    if (state.stats.totalDelivered >= 3) {
+      state.tutorialStep = 2;
+      state.selectedTool = 'sugar_windmill';
+      state.coins += 50;
+      audio.playPhaseUp();
+      addFloatingText(
+        state,
+        MAP_CENTER,
+        MAP_CENTER - 2.5,
+        '🎉 STEP 2達成! +50🪙 🎡風車発電機解放!',
+        '#34D399',
+        1.15
+      );
+    }
+  }
+
+  if (state.tutorialStep === 2) {
+    const hasWindmill = Object.values(state.buildings).some(
+      (b) => b.type === 'sugar_windmill'
+    );
+    if (hasWindmill) {
+      state.tutorialStep = 3;
+      state.selectedTool = 'oven';
+      state.coins += 60;
+      audio.playPhaseUp();
+      addFloatingText(
+        state,
+        state.camera.x,
+        state.camera.y - 1.5,
+        '🎉 STEP 3達成! +60🪙 🔥オーブン＆分配器解放!',
+        '#34D399',
+        1.15
+      );
+    }
+  }
+
+  if (state.tutorialStep === 3) {
+    const bakedCookie =
+      (state.rocket.delivered.cookie ?? 0) >= 1 ||
+      Object.values(state.buildings).some(
+        (b) => b.type === 'oven' && b.totalCrafted >= 1
+      );
+    if (bakedCookie) {
+      state.tutorialStep = 4;
+      state.selectedTool = 'cannon';
+      state.coins += 80;
+      audio.playPhaseUp();
+      spawnTutorialSlime(state);
+      addFloatingText(
+        state,
+        state.camera.x,
+        state.camera.y - 1.5,
+        '🎉 STEP 4達成! +80🪙 🎯おやつキャノン解放!',
+        '#34D399',
+        1.15
+      );
+    }
+  }
+
+  if (state.tutorialStep === 4) {
+    if (state.slimes.length === 0 && state.stats.slimesFed === 0) {
+      spawnTutorialSlime(state);
+    }
+    if (
+      state.stats.slimesFed >= 1 ||
+      state.slimes.some((s) => s.state === 'bouncing')
+    ) {
+      state.tutorialStep = 5;
+      state.coins += 100;
+      state.starSugar += 3;
+      state.stats.starsEarned += 3;
+      state.wave.timer = 24;
+      audio.playPhaseUp();
+      addFloatingText(
+        state,
+        MAP_CENTER,
+        MAP_CENTER - 2.8,
+        '🎓 チュートリアル完了! +100🪙 +3✨ 全基本ツール解放!',
+        '#FDE047',
+        1.3
+      );
+    }
+  }
+}
+
 export function placeBuilding(
   state: GameState,
   type: BuildingType,
@@ -122,6 +304,17 @@ export function placeBuilding(
   if (tile.isRocketSilo) return false;
 
   const def = BUILDINGS[type];
+  if (!isBuildingUnlockedInTutorial(type, state.tutorialStep)) {
+    addFloatingText(
+      state,
+      x + 0.5,
+      y + 0.2,
+      '🌱 チュートリアルを進めると解放されます!',
+      '#F472B6',
+      0.95
+    );
+    return false;
+  }
   if (def.unlockPhase > state.rocket.phase) {
     addFloatingText(
       state,
@@ -184,6 +377,10 @@ export function placeBuilding(
 
   state.coins -= def.costCoins;
   const b = createBuildingInstance(type, x, y, dir);
+  if (type === 'oven' && state.tutorialStep <= 3) {
+    b.selectedRecipeId = 'r_cookie';
+    b.activeRecipeId = 'r_cookie';
+  }
   b.bounceAnim = 1.0;
   state.buildings[b.id] = b;
   tile.buildingId = b.id;
@@ -203,6 +400,7 @@ export function placeBuilding(
       0.4
     );
   }
+  updateTutorialProgress(state);
   return true;
 }
 
@@ -377,6 +575,9 @@ export function startRocketLaunchSequence(state: GameState): void {
 
 export function advancePhaseForDemo(state: GameState): void {
   if (state.rocket.launching || state.rocket.launched) return;
+  if (state.tutorialStep < 5) {
+    state.tutorialStep = 5;
+  }
   const req = ROCKET_PHASES[state.rocket.phase - 1];
   if (!req) return;
   for (const [id, need] of Object.entries(req.requiredItems)) {
@@ -885,6 +1086,7 @@ export function pokeSlimeAt(state: GameState, worldX: number, worldY: number): b
       }
       addFloatingText(state, s.x, s.y - 0.5, 'ぷにっ! +40kcal', '#38BDF8', 0.9);
       feedSlime(state, s, 40, 'none');
+      updateTutorialProgress(state);
       return true;
     }
   }
@@ -1098,7 +1300,7 @@ function stepSimulationSingle(state: GameState, dt: number): void {
   const prevSec = Math.floor(state.time);
   state.time += dt;
   state.stats.playTimeSec += dt;
-  if (Math.floor(state.time) > prevSec) {
+  if (state.tutorialStep >= 5 && Math.floor(state.time) > prevSec) {
     state.coins += 2; // Gentle passive bakery income
   }
 
@@ -1106,9 +1308,15 @@ function stepSimulationSingle(state: GameState, dt: number): void {
   updateBuildings(state, dt, power.ratio);
   updateProjectiles(state, dt);
   updateSlimes(state, dt);
+  updateTutorialProgress(state);
 
   // Wave timer
-  if (!state.peacefulMode && !state.rocket.launching && !state.rocket.launched) {
+  if (
+    state.tutorialStep >= 5 &&
+    !state.peacefulMode &&
+    !state.rocket.launching &&
+    !state.rocket.launched
+  ) {
     state.wave.timer -= dt;
     if (state.wave.timer <= 0) {
       summonWave(state, false);

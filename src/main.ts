@@ -4,8 +4,10 @@ import {
   addFloatingText,
   advancePhaseForDemo,
   demolishAt,
+  isBuildingUnlockedInTutorial,
   placeBuilding,
   pokeSlimeAt,
+  skipTutorial,
   stepSimulation,
   summonWave,
 } from './core/simulation';
@@ -129,6 +131,9 @@ async function bootstrap(): Promise<void> {
     onCloseInspect: () => {
       state.inspectedBuildingId = null;
     },
+    onSkipTutorial: () => {
+      skipTutorial(state);
+    },
   });
 
   audio.setMuted(state.muted);
@@ -156,7 +161,12 @@ async function bootstrap(): Promise<void> {
       state.buildDir = ((state.buildDir + 1) % 4) as Direction;
       audio.playRotate();
     } else if (k === 'x') {
-      state.selectedTool = state.selectedTool === 'demolish' ? 'belt' : 'demolish';
+      state.selectedTool =
+        state.selectedTool === 'demolish'
+          ? state.tutorialStep <= 0
+            ? 'harvester'
+            : 'belt'
+          : 'demolish';
     } else if (k === 'q') {
       state.selectedTool = 'inspect';
     } else if (k === 'h') {
@@ -167,7 +177,7 @@ async function bootstrap(): Promise<void> {
       state.paused = !state.paused;
     } else {
       const match = BUILDING_LIST.find((b) => b.hotkey === e.key);
-      if (match) {
+      if (match && isBuildingUnlockedInTutorial(match.type, state.tutorialStep)) {
         state.selectedTool = match.type as BuildingType;
       }
     }

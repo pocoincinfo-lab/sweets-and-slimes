@@ -7,11 +7,11 @@ export const ROCKET_PHASES: RocketPhaseRequirement[] = [
     partName: 'ビスケット・ベース',
     description: 'まずは小麦と砂糖の採掘・焼成ラインを拡張し、基礎のビスケット発射台を固めよう！',
     requiredItems: {
-      cookie: 60,
-      sugar: 50,
-      wheat: 40,
+      cookie: 20,
+      sugar: 15,
+      wheat: 15,
     },
-    requiredStars: 10,
+    requiredStars: 3,
   },
   {
     phase: 2,
