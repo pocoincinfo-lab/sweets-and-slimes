@@ -7,7 +7,7 @@ import {
   demolishAt,
   getItemsPerMinute,
 } from '../core/simulation';
-import { MAP_SIZE } from '../core/world';
+import { MAP_SIZE, inBounds } from '../core/world';
 import { LoadedAssets } from '../render/assetLoader';
 import { SpriteBank } from '../render/spriteBake';
 import { BuildingType, GameState, ItemId, SlimeType } from '../types/game';
@@ -31,6 +31,15 @@ export interface HudCallbacks {
 }
 
 const DIR_LABELS = ['北 ↑', '東 →', '南 ↓', '西 ←'];
+const DIR_ARROWS = ['↑', '→', '↓', '←'];
+
+const RESOURCE_INFO: Record<string, { name: string; emoji: string }> = {
+  wheat: { name: '黄金小麦畑', emoji: '🌾' },
+  sugar: { name: 'シュガークリスタル鉱脈', emoji: '💎' },
+  berry: { name: 'スイートベリー畑', emoji: '🍓' },
+  milk: { name: 'フレッシュミルクの泉', emoji: '🥛' },
+  cacao: { name: '香ばしカカオの森', emoji: '🍫' },
+};
 
 const BUILDING_EMOJI: Record<BuildingType, string> = {
   belt: '➡️',
@@ -57,6 +66,11 @@ export class GameHud {
   private encyclopediaTab: 'recipes' | 'slimes' = 'recipes';
   private welcomeOpen = true;
   private lastSideSignature = '';
+  private lastRocketSignature = '';
+  private lastStatsSignature = '';
+  private currentRocketPhase = 1;
+  private uiHoverActive = false;
+  private popoverSource: 'none' | 'ui' | 'world' = 'none';
 
   // Cached DOM references
   private rocketCardEl!: HTMLElement;
@@ -73,8 +87,8 @@ export class GameHud {
   private minimapBodyEl!: HTMLElement;
   private minimapToggleEl!: HTMLButtonElement;
   private minimapOpen = true;
-  private hintStripEl!: HTMLElement;
   private bottomDockEl!: HTMLElement;
+  private hoverPopoverEl!: HTMLElement;
   private welcomeModalEl!: HTMLElement;
   private victoryModalEl!: HTMLElement;
   private victoryStatsEl!: HTMLElement;
@@ -98,39 +112,39 @@ export class GameHud {
         <div class="glass-panel rocket-card" id="rocket-card"></div>
         <div class="glass-panel stats-bar" id="stats-bar"></div>
         <div class="glass-panel actions-bar" id="actions-bar">
-          <button class="btn btn-pink" id="btn-rush" title="今すぐスライムを呼んでキラキラ星を稼ぐ">🍮 おかわり!</button>
-          <button class="btn" id="btn-peaceful" title="平和モード切替">🕊️ 平和</button>
-          <button class="btn btn-amber" id="btn-demo" title="テスト用：現在のフェーズを即納品して次へ">🚀 次Phase</button>
-          <button class="btn" id="btn-mute">🔊 音</button>
-          <button class="btn" id="btn-pause">⏸️ 停止</button>
-          <button class="btn" id="btn-speed" title="シミュレーション速度切替 (1x / 2x / 5x)">⏩ 1x</button>
-          <button class="btn" id="btn-encyc">📖 図鑑</button>
-          <button class="btn" id="btn-save">💾 保存</button>
-          <button class="btn" id="btn-reset">🔄 初期化</button>
-          <button class="btn" id="btn-help">❓ 遊び方</button>
+          <button class="btn btn-icon btn-pink" id="btn-rush" data-tip-kind="ui" data-tip-title="🍮 おかわりウェーブ" data-tip-desc="今すぐスライムを呼び寄せてキラキラ星とコインを稼ぎます。">🍮</button>
+          <button class="btn btn-icon" id="btn-peaceful" data-tip-kind="ui" data-tip-title="🕊️ 平和モード切替" data-tip-desc="スライムの自動来訪を止めて、自分のペースで工場を組み立てられます。">🕊️</button>
+          <button class="btn btn-icon" id="btn-speed" data-tip-kind="ui" data-tip-title="⏩ ゲーム速度切替" data-tip-desc="工場の稼働スピードを 1x / 2x / 5x で切り替えます。">⏩ 1x</button>
+          <button class="btn btn-icon" id="btn-pause" data-tip-kind="ui" data-tip-title="⏸️ 一時停止 / 再開" data-tip-desc="工場とスライムを一時停止します（スペースキーでも切替）。">⏸️</button>
+          <button class="btn btn-icon" id="btn-encyc" data-tip-kind="ui" data-tip-title="📖 お菓子＆スライム図鑑" data-tip-desc="全15種類のレシピとスライムの特徴・報酬を確認できます。">📖</button>
+          <button class="btn btn-icon" id="btn-mute" data-tip-kind="ui" data-tip-title="🔊 効果音 ON / OFF" data-tip-desc="クリック音や効果音のミュートを切り替えます。">🔊</button>
+          <button class="btn btn-icon btn-amber" id="btn-demo" data-tip-kind="ui" data-tip-title="🚀 次Phaseへスキップ（テスト用）" data-tip-desc="現在のフェーズ要求を即座に満たし、次のフェーズへ進みます。">🚀</button>
+          <button class="btn btn-icon" id="btn-save" data-tip-kind="ui" data-tip-title="💾 手動セーブ" data-tip-desc="現在の工場データをブラウザへ保存します。">💾</button>
+          <button class="btn btn-icon" id="btn-reset" data-tip-kind="ui" data-tip-title="🔄 最初からやり直す" data-tip-desc="セーブデータを削除して新しいお菓子惑星でスタートします。">🔄</button>
+          <button class="btn btn-icon" id="btn-help" data-tip-kind="ui" data-tip-title="❓ 遊び方ガイド" data-tip-desc="基本操作とロケット発射までの遊び方を表示します。">❓</button>
         </div>
       </div>
 
       <div class="countdown-banner hidden" id="countdown-banner"></div>
 
       <div class="middle-area">
-        <div class="glass-panel minimap-card" id="minimap-card">
+        <div class="glass-panel minimap-card" id="minimap-card" data-tip-kind="ui" data-tip-title="🍓 スイーツマップ (80×80)" data-tip-desc="クリック・ドラッグでカメラを即座に移動できます。🚀基地 / 🟨🌾資源 / 🟧🏭工場 / 🌸🍮スライム">
           <div class="minimap-header">
             <span>🍓 スイーツマップ</span>
-            <button class="minimap-toggle" id="minimap-toggle" title="ミニマップを折りたたむ">−</button>
+            <button class="minimap-toggle" id="minimap-toggle">−</button>
           </div>
           <div class="minimap-body" id="minimap-body">
-            <canvas id="minimap-canvas" width="156" height="156" title="クリック/ドラッグでカメラ移動"></canvas>
-            <div class="minimap-legend">🚀基地 🌾資源 🏭工場 🍮敵</div>
+            <canvas id="minimap-canvas" width="156" height="156"></canvas>
           </div>
         </div>
         <div class="glass-panel side-panel hidden" id="side-panel"></div>
       </div>
 
       <div class="bottom-wrap">
-        <div class="hint-strip" id="hint-strip"></div>
         <div class="glass-panel bottom-dock" id="bottom-dock"></div>
       </div>
+
+      <div class="hover-popover hidden" id="hover-popover"></div>
 
       <div class="modal-backdrop" id="welcome-modal">
         <div class="modal-card">
@@ -142,8 +156,8 @@ export class GameHud {
               WASD / 右ドラッグでマップ移動、ホイールでズーム。ベルトは左ドラッグで自動L字カーブ敷設！
             </div>
             <div class="modal-step">
-              <strong>2. 満腹ボヨヨン防衛</strong><br />
-              機械は絶対壊されません！キャノンでおやつを撃つとスライムが風船みたいに膨らんで吹っ飛び、<strong>キラキラ星✨</strong>を落とします！
+              <strong>2. 🪙コイン＆✨星のサイクル</strong><br />
+              施設の建設には<strong>おやつコイン🪙</strong>（納品・生産・基礎収入で増加）を使用！キャノンでスライムを満腹にして<strong>キラキラ星✨</strong>を集め、ロケットPhaseを進めよう！
             </div>
             <div class="modal-step">
               <strong>3. 本格8段階・巨大工場へ！</strong><br />
@@ -196,8 +210,8 @@ export class GameHud {
     this.minimapCanvasEl = this.root.querySelector('#minimap-canvas')!;
     this.minimapBodyEl = this.root.querySelector('#minimap-body')!;
     this.minimapToggleEl = this.root.querySelector('#minimap-toggle')!;
-    this.hintStripEl = this.root.querySelector('#hint-strip')!;
     this.bottomDockEl = this.root.querySelector('#bottom-dock')!;
+    this.hoverPopoverEl = this.root.querySelector('#hover-popover')!;
     this.welcomeModalEl = this.root.querySelector('#welcome-modal')!;
     this.victoryModalEl = this.root.querySelector('#victory-modal')!;
     this.victoryStatsEl = this.root.querySelector('#victory-stats')!;
@@ -235,7 +249,6 @@ export class GameHud {
       this.minimapOpen = !this.minimapOpen;
       this.minimapBodyEl.classList.toggle('hidden', !this.minimapOpen);
       this.minimapToggleEl.textContent = this.minimapOpen ? '−' : '＋';
-      this.minimapToggleEl.title = this.minimapOpen ? 'ミニマップを折りたたむ' : 'ミニマップを開く';
     });
 
     let minimapDragging = false;
@@ -264,7 +277,345 @@ export class GameHud {
     this.minimapCanvasEl.addEventListener('pointerup', endMiniDrag);
     this.minimapCanvasEl.addEventListener('pointercancel', endMiniDrag);
 
+    this.bindHoverPopover();
     this.buildBottomDock();
+  }
+
+  private bindHoverPopover(): void {
+    this.root.addEventListener('mouseover', (e) => {
+      const tipEl = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-tip-kind]');
+      if (tipEl) {
+        this.uiHoverActive = true;
+        this.showPopoverForUi(tipEl);
+      }
+    });
+    this.root.addEventListener('mousemove', (e) => {
+      const tipEl = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-tip-kind]');
+      if (tipEl) {
+        this.uiHoverActive = true;
+        this.showPopoverForUi(tipEl);
+      } else if (this.uiHoverActive) {
+        this.uiHoverActive = false;
+        if (this.popoverSource === 'ui') this.hidePopover();
+      }
+    });
+    this.root.addEventListener('mouseout', (e) => {
+      const fromTip = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-tip-kind]');
+      const toTip = (e.relatedTarget as HTMLElement | null)?.closest<HTMLElement>('[data-tip-kind]');
+      if (fromTip && !toTip) {
+        this.uiHoverActive = false;
+        if (this.popoverSource === 'ui') this.hidePopover();
+      }
+    });
+  }
+
+  clearUiHover(): void {
+    if (this.uiHoverActive) {
+      this.uiHoverActive = false;
+      if (this.popoverSource === 'ui') this.hidePopover();
+    }
+  }
+
+  private hidePopover(): void {
+    this.popoverSource = 'none';
+    this.hoverPopoverEl.classList.add('hidden');
+  }
+
+  private positionPopover(html: string, source: 'ui' | 'world', anchorRect?: DOMRect, cx = 0, cy = 0): void {
+    this.popoverSource = source;
+    this.hoverPopoverEl.innerHTML = html;
+    this.hoverPopoverEl.classList.remove('hidden');
+
+    const pw = this.hoverPopoverEl.offsetWidth || 240;
+    const ph = this.hoverPopoverEl.offsetHeight || 100;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    let left = 12;
+    let top = 12;
+
+    if (anchorRect) {
+      left = Math.max(10, Math.min(vw - pw - 10, anchorRect.left + anchorRect.width / 2 - pw / 2));
+      if (anchorRect.top > vh * 0.52) {
+        top = Math.max(8, anchorRect.top - ph - 10);
+      } else {
+        top = Math.min(vh - ph - 10, anchorRect.bottom + 8);
+      }
+    } else {
+      left = cx + 18 + pw > vw ? Math.max(10, cx - pw - 14) : cx + 18;
+      top = cy + 18 + ph > vh ? Math.max(10, cy - ph - 14) : cy + 18;
+    }
+
+    this.hoverPopoverEl.style.left = `${Math.round(left)}px`;
+    this.hoverPopoverEl.style.top = `${Math.round(top)}px`;
+  }
+
+  private renderRecipeRowHtml(inputs: Partial<Record<ItemId, number>>, output: ItemId): string {
+    const ins = Object.entries(inputs)
+      .map(([id, qty]) => `<img src="${this.sprites.itemDataUrls[id as ItemId]}" alt="" />×${qty}`)
+      .join('+');
+    return `
+      <div class="pop-recipe-row">
+        ${ins} <span>→</span>
+        <img src="${this.sprites.itemDataUrls[output]}" alt="" />
+        <span>${ITEMS[output].shortName}</span>
+      </div>
+    `;
+  }
+
+  private showPopoverForUi(el: HTMLElement): void {
+    const kind = el.dataset.tipKind;
+    const rect = el.getBoundingClientRect();
+
+    if (kind === 'tool') {
+      const toolType = el.dataset.tipTool as BuildingType;
+      const def = BUILDINGS[toolType];
+      if (!def) return;
+      const locked = def.unlockPhase > this.currentRocketPhase;
+      const badge = locked ? `🔒 Phase ${def.unlockPhase}解放` : `🪙 ${def.costCoins}`;
+      const powerText =
+        def.powerSupply > 0
+          ? `⚡ 発電 +${def.powerSupply}`
+          : def.powerDemand > 0
+            ? `⚡ 消費 -${def.powerDemand}`
+            : '⚡ 電力不要';
+      const recipes = RECIPES_BY_MACHINE[def.type];
+      const recipesHtml =
+        recipes && recipes.length > 0
+          ? `<div class="pop-recipes">${recipes
+              .slice(0, 4)
+              .map((r) => this.renderRecipeRowHtml(r.inputs, r.output))
+              .join('')}${recipes.length > 4 ? `<div class="pop-desc">…ほか全${recipes.length}レシピ（図鑑で確認）</div>` : ''}</div>`
+          : '';
+      this.positionPopover(
+        `
+          <div class="pop-header">
+            <span class="pop-title">${BUILDING_EMOJI[def.type]} ${def.name}</span>
+            <span class="pop-badge">${badge}</span>
+          </div>
+          <div class="pop-meta"><span>${powerText}</span><span>キー: ${def.hotkey}</span></div>
+          <div class="pop-desc">${def.description}</div>
+          ${recipesHtml}
+        `,
+        'ui',
+        rect
+      );
+      return;
+    }
+
+    if (kind === 'item') {
+      const iid = el.dataset.tipItem as ItemId;
+      const item = ITEMS[iid];
+      if (!item) return;
+      const rec = RECIPES.find((r) => r.output === iid);
+      const recHtml = rec
+        ? `<div class="pop-recipes">
+            <div class="pop-desc"><strong>作成:</strong> ${BUILDINGS[rec.machine].name} (${rec.durationSec}s)</div>
+            ${this.renderRecipeRowHtml(rec.inputs, rec.output)}
+          </div>`
+        : `<div class="pop-recipes"><div class="pop-desc">資源フィールド上に採掘機⛏️を置いて収穫</div></div>`;
+      this.positionPopover(
+        `
+          <div class="pop-header">
+            <span class="pop-title">${item.name}</span>
+            <span class="pop-badge">${item.calories}kcal</span>
+          </div>
+          <div class="pop-desc">${item.description}</div>
+          ${recHtml}
+        `,
+        'ui',
+        rect
+      );
+      return;
+    }
+
+    if (kind === 'stat') {
+      const id = el.dataset.tipId;
+      const st = this.latestState;
+      if (id === 'coins') {
+        this.positionPopover(
+          `
+            <div class="pop-header">
+              <span class="pop-title">🪙 おやつコイン</span>
+              <span class="pop-badge">${st ? Math.floor(st.coins) : 0}枚</span>
+            </div>
+            <div class="pop-desc">すべての施設・ベルトの建設資金です（撤去時は100%返金）。発射台への納品・お菓子の生産・スライム満腹・毎秒+2の基礎収入で増えます。</div>
+          `,
+          'ui',
+          rect
+        );
+      } else if (id === 'stars') {
+        this.positionPopover(
+          `
+            <div class="pop-header">
+              <span class="pop-title">✨ キラキラ星</span>
+              <span class="pop-badge">${st ? st.starSugar : 0}個</span>
+            </div>
+            <div class="pop-desc">ロケットPhaseの進化専用ポイント！満腹になって帰ったスライムがお礼に落とします。（累計獲得: ${st?.stats.starsEarned ?? 0}✨ / 満腹: ${st?.stats.slimesFed ?? 0}匹）</div>
+          `,
+          'ui',
+          rect
+        );
+      } else if (id === 'power' && st) {
+        const power = computePowerStats(st);
+        const pct = Math.round(power.ratio * 100);
+        const ipm = getItemsPerMinute(st);
+        this.positionPopover(
+          `
+            <div class="pop-header">
+              <span class="pop-title">⚡ 工場電力 ＆ 生産効率</span>
+              <span class="pop-badge">${pct}%</span>
+            </div>
+            <div class="pop-meta"><span>発電 ${power.supply} / 消費 ${power.demand}</span><span>📦 ${ipm}個/分</span></div>
+            <div class="pop-desc">風車発電機🎡を増やすと生産＆砲台連射が100%で稼働します。</div>
+          `,
+          'ui',
+          rect
+        );
+      }
+      return;
+    }
+
+    if (kind === 'rocket' && this.latestState) {
+      const pReq = ROCKET_PHASES[Math.min(this.latestState.rocket.phase, ROCKET_PHASES.length) - 1];
+      if (!pReq) return;
+      this.positionPopover(
+        `
+          <div class="pop-header">
+            <span class="pop-title">🚀 ${pReq.title}</span>
+            <span class="pop-badge">Phase ${pReq.phase}/${ROCKET_PHASES.length}</span>
+          </div>
+          <div class="pop-desc">${pReq.description}</div>
+        `,
+        'ui',
+        rect
+      );
+      return;
+    }
+
+    const title = el.dataset.tipTitle || '';
+    const desc = el.dataset.tipDesc || '';
+    const badge = el.dataset.tipBadge || '';
+    if (!title) return;
+    this.positionPopover(
+      `
+        <div class="pop-header">
+          <span class="pop-title">${title}</span>
+          ${badge ? `<span class="pop-badge">${badge}</span>` : ''}
+        </div>
+        ${desc ? `<div class="pop-desc">${desc}</div>` : ''}
+      `,
+      'ui',
+      rect
+    );
+  }
+
+  private latestState: GameState | null = null;
+
+  updateWorldHover(
+    state: GameState,
+    tilePos: { x: number; y: number } | null,
+    clientX: number,
+    clientY: number,
+    suppressed: boolean
+  ): void {
+    this.latestState = state;
+    if (suppressed || this.encyclopediaOpen) {
+      if (this.popoverSource === 'world') this.hidePopover();
+      return;
+    }
+    if (this.uiHoverActive) return;
+
+    if (!tilePos || !inBounds(tilePos.x, tilePos.y)) {
+      if (this.popoverSource === 'world') this.hidePopover();
+      return;
+    }
+
+    const tile = state.tiles[tilePos.y][tilePos.x];
+    if (tile.isRocketSilo) {
+      const pReq = ROCKET_PHASES[Math.min(state.rocket.phase, ROCKET_PHASES.length) - 1];
+      const chips = Object.entries(pReq.requiredItems)
+        .map(([id, need]) => {
+          const iid = id as ItemId;
+          const have = state.rocket.delivered[iid] ?? 0;
+          return `<img src="${this.sprites.itemDataUrls[iid]}" alt="" /><span>${Math.min(have, need ?? 0)}/${need}</span>`;
+        })
+        .join(' ');
+      this.positionPopover(
+        `
+          <div class="pop-header">
+            <span class="pop-title">🚀 スイーツ発射台</span>
+            <span class="pop-badge">Phase ${state.rocket.phase}/${ROCKET_PHASES.length}</span>
+          </div>
+          <div class="pop-desc">${pReq.partName} — ベルトを直接接続して納品！（余剰品はコインに自動換金🪙）</div>
+          <div class="pop-recipes"><div class="pop-recipe-row">${chips}</div></div>
+        `,
+        'world',
+        undefined,
+        clientX,
+        clientY
+      );
+      return;
+    }
+
+    if (tile.buildingId && state.buildings[tile.buildingId]) {
+      const b = state.buildings[tile.buildingId];
+      const def = BUILDINGS[b.type];
+      const inItems = Object.entries(b.inputBuffer)
+        .filter(([, q]) => (q ?? 0) > 0)
+        .map(([id, q]) => `<img src="${this.sprites.itemDataUrls[id as ItemId]}" alt="" />×${q}`)
+        .join(' ');
+      const ammoItems = Object.entries(b.ammoBuffer)
+        .filter(([, q]) => (q ?? 0) > 0)
+        .map(([id, q]) => `<img src="${this.sprites.itemDataUrls[id as ItemId]}" alt="" />×${q}`)
+        .join(' ');
+      const activeRec = b.activeRecipeId ? RECIPES.find((r) => r.id === b.activeRecipeId) : null;
+      const statusHtml = activeRec
+        ? `<div class="pop-meta"><span>レシピ: ${activeRec.name}</span><span>累計: ${b.totalCrafted}</span></div>`
+        : `<div class="pop-meta"><span>向き: ${DIR_LABELS[b.dir]}</span>${b.totalCrafted > 0 ? `<span>累計: ${b.totalCrafted}</span>` : ''}</div>`;
+      const bufHtml =
+        inItems || ammoItems
+          ? `<div class="pop-recipes"><div class="pop-recipe-row">${inItems || ammoItems}</div></div>`
+          : '';
+      this.positionPopover(
+        `
+          <div class="pop-header">
+            <span class="pop-title">${BUILDING_EMOJI[b.type]} ${def.name}</span>
+            <span class="pop-badge">${DIR_ARROWS[b.dir]}</span>
+          </div>
+          ${statusHtml}
+          <div class="pop-desc">${def.description}</div>
+          ${bufHtml}
+        `,
+        'world',
+        undefined,
+        clientX,
+        clientY
+      );
+      return;
+    }
+
+    if (tile.resource) {
+      const info = RESOURCE_INFO[tile.resource];
+      this.positionPopover(
+        `
+          <div class="pop-header">
+            <span class="pop-title">${info?.emoji ?? '✨'} ${info?.name ?? tile.resource}</span>
+            <span class="pop-badge">資源</span>
+          </div>
+          <div class="pop-desc">ここに採掘機⛏️（🪙25）を配置すると自動で収穫します。</div>
+        `,
+        'world',
+        undefined,
+        clientX,
+        clientY
+      );
+      return;
+    }
+
+    if (this.popoverSource === 'world') {
+      this.hidePopover();
+    }
   }
 
   getMinimapCanvas(): HTMLCanvasElement | null {
@@ -285,13 +636,13 @@ export class GameHud {
       const btn = document.createElement('button');
       btn.className = 'tool-btn';
       btn.dataset.tool = def.type;
-      btn.title = `${def.name}: ${def.description}`;
+      btn.dataset.tipKind = 'tool';
+      btn.dataset.tipTool = def.type;
       const emoji = BUILDING_EMOJI[def.type] ?? '✨';
       btn.innerHTML = `
         <span class="tool-hotkey">${def.hotkey}</span>
         <span class="tool-icon" style="background:${def.accentColor}26">${emoji}</span>
-        <span class="tool-name">${def.shortName}</span>
-        <span class="tool-cost">${def.costStars === 0 ? '無料' : `${def.costStars}✨`}</span>
+        <span class="tool-cost">🪙${def.costCoins}</span>
       `;
       btn.addEventListener('click', () => this.cb.onSelectTool(def.type));
       this.bottomDockEl.appendChild(btn);
@@ -301,11 +652,18 @@ export class GameHud {
     actionDivider.className = 'dock-divider';
     this.bottomDockEl.appendChild(actionDivider);
 
-    const extras: Array<{ id: 'inspect' | 'demolish' | 'rotate' | 'center'; label: string; key: string; swatch: string; emoji: string }> = [
-      { id: 'inspect', label: '確認', key: 'Q', swatch: '#38BDF8', emoji: '🔍' },
-      { id: 'rotate', label: '回転', key: 'R', swatch: '#FBBF24', emoji: '🔄' },
-      { id: 'demolish', label: '撤去', key: 'X', swatch: '#F43F5E', emoji: '🗑️' },
-      { id: 'center', label: '発射台', key: 'H', swatch: '#F472B6', emoji: '🚀' },
+    const extras: Array<{
+      id: 'inspect' | 'demolish' | 'rotate' | 'center';
+      title: string;
+      desc: string;
+      key: string;
+      swatch: string;
+      emoji: string;
+    }> = [
+      { id: 'inspect', title: '🔍 機械・レシピ確認', desc: '配置した機械をクリックして生産状況の確認や固定レシピの設定を行います。', key: 'Q', swatch: '#38BDF8', emoji: '🔍' },
+      { id: 'rotate', title: '🔄 建設向きの回転', desc: '次に配置するベルトや機械の向きを90°回転させます（Rキー）。', key: 'R', swatch: '#FBBF24', emoji: '🔄' },
+      { id: 'demolish', title: '🗑️ 施設の撤去', desc: '左クリック/ドラッグで施設を撤去します（建設コインは100%返金）。', key: 'X', swatch: '#F43F5E', emoji: '🗑️' },
+      { id: 'center', title: '🚀 発射台へ移動', desc: 'マップ中央のスイーツ発射台へカメラを戻します（Hキー）。', key: 'H', swatch: '#F472B6', emoji: '🚀' },
     ];
 
     for (const ex of extras) {
@@ -314,11 +672,15 @@ export class GameHud {
       if (ex.id === 'inspect' || ex.id === 'demolish') {
         btn.dataset.tool = ex.id;
       }
+      btn.dataset.tipKind = 'ui';
+      btn.dataset.tipTitle = ex.title;
+      btn.dataset.tipDesc = ex.desc;
+      btn.dataset.tipBadge = `キー: ${ex.key}`;
+      const costText = ex.id === 'rotate' ? `<span class="tool-cost" id="btn-rotate-dir">${DIR_ARROWS[1]}</span>` : `<span class="tool-cost"></span>`;
       btn.innerHTML = `
         <span class="tool-hotkey">${ex.key}</span>
         <span class="tool-icon" style="background:${ex.swatch}26">${ex.emoji}</span>
-        <span class="tool-name">${ex.label}</span>
-        <span class="tool-cost">操作</span>
+        ${costText}
       `;
       btn.addEventListener('click', () => {
         if (ex.id === 'rotate') this.cb.onRotate();
@@ -339,62 +701,77 @@ export class GameHud {
   }
 
   sync(state: GameState): void {
-    // 1. Rocket progress card
+    this.latestState = state;
+    this.currentRocketPhase = state.rocket.phase;
+
+    // 1. Rocket progress card (icon-only requirement chips; details in hover popover)
     const phaseReq = ROCKET_PHASES[Math.min(state.rocket.phase, ROCKET_PHASES.length) - 1];
-    let chipsHtml = '';
-    if (state.rocket.launched) {
-      chipsHtml = `<span class="req-chip done">🚀 打ち上げ成功！宇宙を航行中！</span>`;
-    } else if (state.rocket.launching) {
-      chipsHtml = `<span class="req-chip">🔥 点火カウントダウン中！</span>`;
-    } else if (phaseReq) {
-      for (const [id, need] of Object.entries(phaseReq.requiredItems)) {
-        const iid = id as ItemId;
-        const have = state.rocket.delivered[iid] ?? 0;
-        const done = have >= (need ?? 0);
+    const reqSig = phaseReq
+      ? Object.keys(phaseReq.requiredItems)
+          .map((id) => `${id}:${state.rocket.delivered[id as ItemId] ?? 0}`)
+          .join(',')
+      : '';
+    const rocketSig = `${state.rocket.launched}|${state.rocket.launching}|${state.rocket.phase}|${state.starSugar}|${reqSig}`;
+    if (rocketSig !== this.lastRocketSignature) {
+      this.lastRocketSignature = rocketSig;
+      let chipsHtml = '';
+      if (state.rocket.launched) {
+        chipsHtml = `<span class="req-chip done">🚀 打ち上げ成功！</span>`;
+      } else if (state.rocket.launching) {
+        chipsHtml = `<span class="req-chip">🔥 点火カウントダウン中！</span>`;
+      } else if (phaseReq) {
+        for (const [id, need] of Object.entries(phaseReq.requiredItems)) {
+          const iid = id as ItemId;
+          const have = state.rocket.delivered[iid] ?? 0;
+          const done = have >= (need ?? 0);
+          chipsHtml += `
+            <span class="req-chip ${done ? 'done' : ''}" data-tip-kind="item" data-tip-item="${iid}">
+              <img src="${this.sprites.itemDataUrls[iid]}" alt="${ITEMS[iid].shortName}" />
+              ${Math.min(have, need ?? 0)}/${need}
+            </span>
+          `;
+        }
+        const starDone = state.starSugar >= phaseReq.requiredStars;
         chipsHtml += `
-          <span class="req-chip ${done ? 'done' : ''}">
-            <img src="${this.sprites.itemDataUrls[iid]}" alt="${ITEMS[iid].shortName}" />
-            ${ITEMS[iid].shortName} ${Math.min(have, need ?? 0)}/${need}
+          <span class="req-chip ${starDone ? 'done' : ''}" data-tip-kind="stat" data-tip-id="stars">
+            ✨ ${Math.min(state.starSugar, phaseReq.requiredStars)}/${phaseReq.requiredStars}
           </span>
         `;
       }
-      const starDone = state.starSugar >= phaseReq.requiredStars;
-      chipsHtml += `
-        <span class="req-chip ${starDone ? 'done' : ''}">
-          ✨ ${Math.min(state.starSugar, phaseReq.requiredStars)}/${phaseReq.requiredStars}
-        </span>
+
+      this.rocketCardEl.innerHTML = `
+        <img class="rocket-thumb" src="${this.assets.rocketEmblemUrl}" alt="Rocket" />
+        <div class="rocket-info">
+          <div class="rocket-title-row" data-tip-kind="rocket">
+            <span class="phase-badge">${state.rocket.launched ? 'COMPLETE' : `Phase ${state.rocket.phase}/${ROCKET_PHASES.length}`}</span>
+            <span>${state.rocket.launched ? '発射完了！' : phaseReq.partName}</span>
+          </div>
+          <div class="req-chips">${chipsHtml}</div>
+        </div>
       `;
     }
 
-    this.rocketCardEl.innerHTML = `
-      <img class="rocket-thumb" src="${this.assets.rocketEmblemUrl}" alt="Rocket" />
-      <div class="rocket-info">
-        <div class="rocket-title-row">
-          <span class="phase-badge">${state.rocket.launched ? 'COMPLETE' : `Phase ${state.rocket.phase}/${ROCKET_PHASES.length}`}</span>
-          <span>${state.rocket.launched ? 'スイーツ・ロケット発射完了！' : phaseReq.partName}</span>
-        </div>
-        <div class="req-chips">${chipsHtml}</div>
-      </div>
-    `;
-
-    // 2. Stats bar
+    // 2. Stats bar (3 compact visual pills; detailed breakdown in hover popover)
     const power = computePowerStats(state);
     const pct = Math.round(power.ratio * 100);
-    const ipm = getItemsPerMinute(state);
-    this.statsBarEl.innerHTML = `
-      <span class="stat-pill stat-star">✨ ${state.starSugar}</span>
-      <span class="stat-pill">⚡ ${power.supply}/${power.demand} (${pct}%)</span>
-      <span class="stat-pill">📦 ${ipm}個/分</span>
-      <span class="stat-pill">🐾 ${state.stats.slimesFed}匹満腹</span>
-    `;
+    const coinsWhole = Math.floor(state.coins);
+    const statsSig = `${coinsWhole}|${state.starSugar}|${pct}`;
+    if (statsSig !== this.lastStatsSignature) {
+      this.lastStatsSignature = statsSig;
+      this.statsBarEl.innerHTML = `
+        <span class="stat-pill stat-coin" data-tip-kind="stat" data-tip-id="coins">🪙 ${coinsWhole}</span>
+        <span class="stat-pill stat-star" data-tip-kind="stat" data-tip-id="stars">✨ ${state.starSugar}</span>
+        <span class="stat-pill" data-tip-kind="stat" data-tip-id="power">⚡ ${pct}%</span>
+      `;
+    }
 
-    // 3. Action button states
+    // 3. Action icon button states
     this.btnPeaceful.classList.toggle('btn-active', state.peacefulMode);
-    this.btnPeaceful.textContent = state.peacefulMode ? '🕊️ 平和中' : '🕊️ 平和';
-    this.btnMute.textContent = state.muted ? '🔇 消音' : '🔊 音';
-    this.btnPause.textContent = state.paused ? '▶️ 再開' : '⏸️ 停止';
+    this.btnPeaceful.textContent = '🕊️';
+    this.btnMute.textContent = state.muted ? '🔇' : '🔊';
+    this.btnPause.textContent = state.paused ? '▶️' : '⏸️';
     this.btnPause.classList.toggle('btn-active', state.paused);
-    this.btnSpeed.textContent = `⏩ ${state.simSpeed}x`;
+    this.btnSpeed.textContent = `⏩${state.simSpeed}x`;
     this.btnSpeed.classList.toggle('btn-active', state.simSpeed > 1);
     this.btnEncyc.classList.toggle('btn-active', this.encyclopediaOpen);
     this.btnDemo.disabled = state.rocket.launching || state.rocket.launched;
@@ -407,7 +784,7 @@ export class GameHud {
       this.countdownEl.classList.add('hidden');
     }
 
-    // 5. Bottom dock selection + lock state + hint strip
+    // 5. Bottom dock selection + lock state + rotate arrow
     const toolBtns = this.bottomDockEl.querySelectorAll<HTMLButtonElement>('.tool-btn');
     toolBtns.forEach((btn) => {
       const t = btn.dataset.tool as BuildingType | 'demolish' | 'inspect' | undefined;
@@ -420,24 +797,13 @@ export class GameHud {
         if (costEl) {
           costEl.textContent = locked
             ? `🔒P${def.unlockPhase}`
-            : def.costStars === 0
-              ? '無料'
-              : `${def.costStars}✨`;
+            : `🪙${def.costCoins}`;
         }
       }
     });
-
-    if (state.selectedTool === 'demolish') {
-      this.hintStripEl.textContent = '🗑️ 撤去モード: 左クリック/ドラッグで施設を撤去（コスト100%返金） | スライムクリックでデコピン!';
-    } else if (state.selectedTool === 'inspect') {
-      this.hintStripEl.textContent = '🔍 確認モード: 機械をクリックしてレシピ変更や生産状況を確認 | スライムクリックでデコピン!';
-    } else {
-      const def = BUILDINGS[state.selectedTool];
-      const lockMsg =
-        def.unlockPhase > state.rocket.phase
-          ? ` [🔒 Phase ${def.unlockPhase}で解放]`
-          : '';
-      this.hintStripEl.textContent = `🛠️ ${def.name}${lockMsg} [向き:${DIR_LABELS[state.buildDir]}] — ${def.description} (WASD/右ドラッグ:移動, ホイール:ズーム, R:回転)`;
+    const rotEl = this.bottomDockEl.querySelector('#btn-rotate-dir');
+    if (rotEl) {
+      rotEl.textContent = DIR_ARROWS[state.buildDir];
     }
 
     // 6. Side panel (Encyclopedia or Building Inspector)

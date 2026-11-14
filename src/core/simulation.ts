@@ -19,6 +19,7 @@ import {
   dirDelta,
   genId,
   inBounds,
+  MAP_CENTER,
   MAP_SIZE,
   oppositeDir,
   SILO_MAX,
@@ -153,12 +154,12 @@ export function placeBuilding(
       const isExistingBelt = existing.type === 'belt' || existing.type === 'express_belt';
       const isNewBelt = type === 'belt' || type === 'express_belt';
       if (isExistingBelt && isNewBelt) {
-        const diff = def.costStars - BUILDINGS[existing.type].costStars;
-        if (diff > state.starSugar) {
-          addFloatingText(state, x + 0.5, y + 0.2, '✨キラキラ星不足!', '#FBBF24', 0.9);
+        const diff = def.costCoins - BUILDINGS[existing.type].costCoins;
+        if (diff > state.coins) {
+          addFloatingText(state, x + 0.5, y + 0.2, '🪙コイン不足!', '#FBBF24', 0.9);
           return false;
         }
-        state.starSugar -= diff;
+        state.coins -= diff;
         existing.type = type;
         existing.dir = dir;
         existing.bounceAnim = 1;
@@ -169,19 +170,19 @@ export function placeBuilding(
     }
   }
 
-  if (state.starSugar < def.costStars) {
+  if (state.coins < def.costCoins) {
     addFloatingText(
       state,
       x + 0.5,
       y + 0.2,
-      `✨キラキラ星が${def.costStars}個必要!`,
+      `🪙コインが${def.costCoins}枚必要!`,
       '#FBBF24',
       0.95
     );
     return false;
   }
 
-  state.starSugar -= def.costStars;
+  state.coins -= def.costCoins;
   const b = createBuildingInstance(type, x, y, dir);
   b.bounceAnim = 1.0;
   state.buildings[b.id] = b;
@@ -214,8 +215,8 @@ export function demolishAt(state: GameState, x: number, y: number): boolean {
     tile.buildingId = null;
     return false;
   }
-  const refund = BUILDINGS[b.type].costStars;
-  state.starSugar += refund;
+  const refund = BUILDINGS[b.type].costCoins;
+  state.coins += refund;
   if (state.inspectedBuildingId === b.id) {
     state.inspectedBuildingId = null;
   }
@@ -238,13 +239,14 @@ export function demolishAt(state: GameState, x: number, y: number): boolean {
     );
   }
   if (refund > 0) {
-    addFloatingText(state, x + 0.5, y + 0.3, `+${refund}✨ 返却`, '#FDE047', 0.9);
+    addFloatingText(state, x + 0.5, y + 0.3, `+${refund}🪙 返却`, '#FDE047', 0.9);
   }
   return true;
 }
 
 function recordProduction(state: GameState): void {
   state.stats.totalProduced += 1;
+  state.coins += 2;
   state.productionHistory.push(state.time);
   if (state.productionHistory.length > 800) {
     state.productionHistory.splice(0, state.productionHistory.length - 600);
@@ -252,6 +254,9 @@ function recordProduction(state: GameState): void {
 }
 
 function deliverToRocket(state: GameState, itemId: ItemId, x: number, y: number): boolean {
+  const coinGain = Math.max(3, Math.round(ITEMS[itemId].rocketValue * 1.5));
+  state.coins += coinGain;
+
   if (state.rocket.launched || state.rocket.launching) {
     // Still accept into celebration buffet so belts keep flowing!
     state.stats.totalDelivered += 1;
@@ -269,8 +274,8 @@ function deliverToRocket(state: GameState, itemId: ItemId, x: number, y: number)
       state.rocket.delivered[itemId] = have + 1;
       addFloatingText(
         state,
-        32,
-        29.6,
+        MAP_CENTER,
+        MAP_CENTER - 2.4,
         `+1 ${ITEMS[itemId].shortName} (${have + 1}/${need})`,
         '#FDE047',
         0.95
@@ -326,8 +331,8 @@ export function checkRocketPhaseProgress(state: GameState): void {
     const nextReq = ROCKET_PHASES[state.rocket.phase - 1];
     addFloatingText(
       state,
-      32,
-      28.8,
+      MAP_CENTER,
+      MAP_CENTER - 3.2,
       `🎂 ${nextReq.partName}建造スタート!`,
       '#F472B6',
       1.35
@@ -336,8 +341,8 @@ export function checkRocketPhaseProgress(state: GameState): void {
       const a = (Math.PI * 2 * i) / 24;
       spawnParticle(
         state,
-        32,
-        32,
+        MAP_CENTER,
+        MAP_CENTER,
         Math.cos(a) * (2 + Math.random() * 2.5),
         Math.sin(a) * (2 + Math.random() * 2.5),
         i % 2 === 0 ? '#FDE047' : '#F472B6',
@@ -357,7 +362,7 @@ export function startRocketLaunchSequence(state: GameState): void {
   state.rocket.launching = true;
   state.rocket.launchCountdown = 10;
   audio.playPhaseUp();
-  addFloatingText(state, 32, 28.5, '🚀 スイーツ・ロケット点火準備！キング軍団おやつパレード！', '#FDE047', 1.4);
+  addFloatingText(state, MAP_CENTER, MAP_CENTER - 3.5, '🚀 スイーツ・ロケット点火準備！キング軍団おやつパレード！', '#FDE047', 1.4);
 
   if (!state.peacefulMode) {
     // Festive final parade!
@@ -677,7 +682,7 @@ function updateBuildings(state: GameState, dt: number, powerRatio: number): void
       if (s.state === 'bouncing') continue;
       const distToCannon = Math.hypot(s.x - bx, s.y - by);
       if (distToCannon > range) continue;
-      const distToSilo = Math.hypot(s.x - 32, s.y - 32);
+      const distToSilo = Math.hypot(s.x - MAP_CENTER, s.y - MAP_CENTER);
       if (distToSilo < bestScore) {
         bestScore = distToSilo;
         target = s;
@@ -720,25 +725,25 @@ export function spawnSlimeAtEdge(
   edge: Direction
 ): void {
   const def = SLIME_DEFS[type];
-  let x = 32;
-  let y = 32;
-  const spread = (Math.random() - 0.5) * 16;
+  let x = MAP_CENTER;
+  let y = MAP_CENTER;
+  const spread = (Math.random() - 0.5) * 20;
   if (edge === 0) {
-    x = 32 + spread;
+    x = MAP_CENTER + spread;
     y = 1.5;
   } else if (edge === 1) {
     x = MAP_SIZE - 1.5;
-    y = 32 + spread;
+    y = MAP_CENTER + spread;
   } else if (edge === 2) {
-    x = 32 + spread;
+    x = MAP_CENTER + spread;
     y = MAP_SIZE - 1.5;
   } else {
     x = 1.5;
-    y = 32 + spread;
+    y = MAP_CENTER + spread;
   }
 
-  const dx = x - 32;
-  const dy = y - 32;
+  const dx = x - MAP_CENTER;
+  const dy = y - MAP_CENTER;
   const len = Math.hypot(dx, dy) || 1;
   const scaleHp = 1 + (state.rocket.phase - 1) * 0.15;
 
@@ -804,8 +809,8 @@ function triggerSlimeBounce(state: GameState, s: Slime, chain: number): void {
   s.chainCount = chain;
   s.squash = 1.0;
 
-  const dx = s.x - 32;
-  const dy = s.y - 32;
+  const dx = s.x - MAP_CENTER;
+  const dy = s.y - MAP_CENTER;
   const len = Math.hypot(dx, dy) || 1;
   const dirX = len > 1 ? dx / len : s.originDirX;
   const dirY = len > 1 ? dy / len : s.originDirY;
@@ -869,8 +874,8 @@ export function pokeSlimeAt(state: GameState, worldX: number, worldY: number): b
     const radius = def.baseRadius * (1 + ratio * 1.15) + 0.35;
     const dist = Math.hypot(s.x - worldX, s.y - worldY);
     if (dist <= radius) {
-      const dx = s.x - 32;
-      const dy = s.y - 32;
+      const dx = s.x - MAP_CENTER;
+      const dy = s.y - MAP_CENTER;
       const len = Math.hypot(dx, dy) || 1;
       s.x += (dx / len) * 0.7;
       s.y += (dy / len) * 0.7;
@@ -983,15 +988,24 @@ function updateSlimes(state: GameState, dt: number): void {
         spawnParticle(state, s.x, s.y, (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.2, '#FDE047', 'star', 0.14, 0.45);
       }
 
-      const distFromCenter = Math.hypot(s.x - 32, s.y - 32);
-      if (s.x < 0.5 || s.x > MAP_SIZE - 0.5 || s.y < 0.5 || s.y > MAP_SIZE - 0.5 || distFromCenter > 30) {
+      const distFromCenter = Math.hypot(s.x - MAP_CENTER, s.y - MAP_CENTER);
+      if (s.x < 0.5 || s.x > MAP_SIZE - 0.5 || s.y < 0.5 || s.y > MAP_SIZE - 0.5 || distFromCenter > MAP_SIZE * 0.47) {
         const reward = def.starReward + Math.min(5, s.chainCount);
+        const coinBonus = reward * 15;
         state.starSugar += reward;
+        state.coins += coinBonus;
         state.stats.slimesFed += 1;
         state.stats.starsEarned += reward;
         state.stats.maxChain = Math.max(state.stats.maxChain, s.chainCount + 1);
         audio.playStar();
-        addFloatingText(state, Math.min(MAP_SIZE - 2, Math.max(2, s.x)), Math.min(MAP_SIZE - 2, Math.max(2, s.y)), `+${reward}✨`, '#FDE047', 1.2);
+        addFloatingText(
+          state,
+          Math.min(MAP_SIZE - 2, Math.max(2, s.x)),
+          Math.min(MAP_SIZE - 2, Math.max(2, s.y)),
+          `+${reward}✨ +${coinBonus}🪙`,
+          '#FDE047',
+          1.2
+        );
         for (let k = 0; k < 10; k++) {
           const a = (Math.PI * 2 * k) / 10;
           spawnParticle(state, s.x, s.y, Math.cos(a) * 3, Math.sin(a) * 3, '#FDE047', 'star', 0.2, 0.7);
@@ -1020,8 +1034,8 @@ function updateSlimes(state: GameState, dt: number): void {
 
     // Approaching rocket silo gently
     if (s.stunTimer <= 0) {
-      const dx = 32 - s.x;
-      const dy = 32 - s.y;
+      const dx = MAP_CENTER - s.x;
+      const dy = MAP_CENTER - s.y;
       const dist = Math.hypot(dx, dy) || 1;
       const speedMult = s.slowTimer > 0 ? 0.42 : 1.0;
       const step = def.speed * speedMult * dt;
@@ -1049,11 +1063,11 @@ function updateSlimes(state: GameState, dt: number): void {
 
     // Reached central silo? Never breaks anything! Simply begs happily and gently bounces back a little
     if (s.x >= SILO_MIN - 0.2 && s.x <= SILO_MAX + 1.2 && s.y >= SILO_MIN - 0.2 && s.y <= SILO_MAX + 1.2) {
-      const pushX = s.x - 32;
-      const pushY = s.y - 32;
+      const pushX = s.x - MAP_CENTER;
+      const pushY = s.y - MAP_CENTER;
       const plen = Math.hypot(pushX, pushY) || 1;
-      s.x = 32 + (pushX / plen) * 3.1;
-      s.y = 32 + (pushY / plen) * 3.1;
+      s.x = MAP_CENTER + (pushX / plen) * 3.1;
+      s.y = MAP_CENTER + (pushY / plen) * 3.1;
       s.stunTimer = 1.2;
       addFloatingText(state, s.x, s.y - 0.6, 'おやつちょーだい♡', '#F9A8D4', 0.85);
     }
@@ -1081,8 +1095,12 @@ function updateParticles(state: GameState, dt: number): void {
 }
 
 function stepSimulationSingle(state: GameState, dt: number): void {
+  const prevSec = Math.floor(state.time);
   state.time += dt;
   state.stats.playTimeSec += dt;
+  if (Math.floor(state.time) > prevSec) {
+    state.coins += 2; // Gentle passive bakery income
+  }
 
   const power = computePowerStats(state);
   updateBuildings(state, dt, power.ratio);
@@ -1104,8 +1122,8 @@ function stepSimulationSingle(state: GameState, dt: number): void {
     if (Math.random() < 0.7) {
       spawnParticle(
         state,
-        32 + (Math.random() - 0.5) * 2.2,
-        33.4,
+        MAP_CENTER + (Math.random() - 0.5) * 2.2,
+        MAP_CENTER + 1.4,
         (Math.random() - 0.5) * 3.5,
         1.2 + Math.random() * 1.5,
         Math.random() < 0.5 ? '#FBCFE8' : '#FFF1F2',
@@ -1127,8 +1145,8 @@ function stepSimulationSingle(state: GameState, dt: number): void {
         const a = (Math.PI * 2 * i) / 45;
         spawnParticle(
           state,
-          32,
-          32,
+          MAP_CENTER,
+          MAP_CENTER,
           Math.cos(a) * (2 + Math.random() * 5),
           Math.sin(a) * (2 + Math.random() * 5),
           i % 3 === 0 ? '#FDE047' : i % 3 === 1 ? '#F472B6' : '#38BDF8',
@@ -1143,8 +1161,8 @@ function stepSimulationSingle(state: GameState, dt: number): void {
     for (let k = 0; k < 2; k++) {
       spawnParticle(
         state,
-        32 + (Math.random() - 0.5) * 1.6,
-        32.8 - state.rocket.launchLiftY * 0.35,
+        MAP_CENTER + (Math.random() - 0.5) * 1.6,
+        MAP_CENTER + 0.8 - state.rocket.launchLiftY * 0.35,
         (Math.random() - 0.5) * 4,
         2.5 + Math.random() * 2,
         k === 0 ? '#F9A8D4' : '#FEF08A',

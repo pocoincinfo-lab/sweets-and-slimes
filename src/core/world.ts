@@ -7,9 +7,10 @@ import {
   Tile,
 } from '../types/game';
 
-export const MAP_SIZE = 64;
-export const SILO_MIN = 30;
-export const SILO_MAX = 33; // 4x4 center: (30..33, 30..33)
+export const MAP_SIZE = 80;
+export const SILO_MIN = 38;
+export const SILO_MAX = 41; // 4x4 center: (38..41, 38..41)
+export const MAP_CENTER = 40;
 
 let nextEntityId = 1;
 export function genId(prefix: string): string {
@@ -65,6 +66,17 @@ function paintPatch(
         tiles[y][x].resource = resource;
       }
     }
+  }
+}
+
+function paintOrganicVein(
+  tiles: Tile[][],
+  nodes: Array<{ cx: number; cy: number; r: number }>,
+  resource: ResourceNode,
+  rand: () => number
+): void {
+  for (const n of nodes) {
+    paintPatch(tiles, n.cx, n.cy, n.r, resource, rand);
   }
 }
 
@@ -133,38 +145,176 @@ export function createInitialGameState(): GameState {
     tiles.push(row);
   }
 
-  // Starter resource nodes around the central silo (large clusters for multi-harvester scaling)
-  paintPatch(tiles, 21, 29, 3.3, 'wheat', rand);
-  paintPatch(tiles, 21, 34, 3.3, 'sugar', rand);
-  paintPatch(tiles, 28, 21, 3.5, 'milk', rand);
-  paintPatch(tiles, 40, 24, 3.5, 'berry', rand);
-  paintPatch(tiles, 40, 37, 3.5, 'cacao', rand);
-  paintPatch(tiles, 29, 42, 3.4, 'sugar', rand);
-  paintPatch(tiles, 35, 42, 3.4, 'wheat', rand);
+  // 1. Starter West Outcrops just outside the spacious central factory plaza (x = 22..25)
+  paintOrganicVein(
+    tiles,
+    [
+      { cx: 22.8, cy: 36.2, r: 2.4 },
+      { cx: 24.4, cy: 37.8, r: 1.9 },
+    ],
+    'wheat',
+    rand
+  );
+  paintOrganicVein(
+    tiles,
+    [
+      { cx: 22.6, cy: 42.6, r: 2.5 },
+      { cx: 24.4, cy: 40.8, r: 1.9 },
+    ],
+    'sugar',
+    rand
+  );
 
-  // Outer megapatches for Factorio-scale late-game factories
-  const outerPatches: Array<{ cx: number; cy: number; r: number; res: ResourceNode }> = [
-    { cx: 13, cy: 15, r: 4.1, res: 'wheat' },
-    { cx: 50, cy: 15, r: 4.0, res: 'sugar' },
-    { cx: 14, cy: 49, r: 4.0, res: 'berry' },
-    { cx: 50, cy: 49, r: 4.1, res: 'cacao' },
-    { cx: 49, cy: 31, r: 3.8, res: 'milk' },
-    { cx: 13, cy: 31, r: 3.8, res: 'berry' },
-    { cx: 32, cy: 11, r: 3.8, res: 'cacao' },
-    { cx: 31, cy: 53, r: 3.8, res: 'milk' },
-    { cx: 10, cy: 8, r: 3.5, res: 'sugar' },
-    { cx: 54, cy: 8, r: 3.5, res: 'wheat' },
-    { cx: 8, cy: 55, r: 3.5, res: 'cacao' },
-    { cx: 55, cy: 55, r: 3.6, res: 'berry' },
+  // 2. Mid-Ring Organic Veins (winding crescents, ribbons, twin ridges around the plaza)
+  const midVeins: Array<{
+    res: ResourceNode;
+    nodes: Array<{ cx: number; cy: number; r: number }>;
+  }> = [
+    {
+      res: 'milk',
+      nodes: [
+        { cx: 35, cy: 20, r: 2.8 },
+        { cx: 39.5, cy: 18.5, r: 3.0 },
+        { cx: 44, cy: 20, r: 2.7 },
+      ],
+    },
+    {
+      res: 'berry',
+      nodes: [
+        { cx: 58.5, cy: 34, r: 2.7 },
+        { cx: 61, cy: 38.5, r: 3.1 },
+        { cx: 59, cy: 43, r: 2.8 },
+      ],
+    },
+    {
+      res: 'cacao',
+      nodes: [
+        { cx: 36, cy: 59, r: 2.8 },
+        { cx: 40.5, cy: 61, r: 3.1 },
+        { cx: 45, cy: 58.5, r: 2.8 },
+      ],
+    },
+    {
+      res: 'sugar',
+      nodes: [
+        { cx: 21.5, cy: 23, r: 2.8 },
+        { cx: 25.5, cy: 20.5, r: 2.6 },
+      ],
+    },
+    {
+      res: 'wheat',
+      nodes: [
+        { cx: 54.5, cy: 21.5, r: 2.8 },
+        { cx: 58.5, cy: 24.5, r: 2.7 },
+      ],
+    },
+    {
+      res: 'berry',
+      nodes: [
+        { cx: 21.5, cy: 56, r: 2.9 },
+        { cx: 25.5, cy: 59, r: 2.7 },
+      ],
+    },
+    {
+      res: 'milk',
+      nodes: [
+        { cx: 56, cy: 57, r: 2.9 },
+        { cx: 60, cy: 54, r: 2.7 },
+      ],
+    },
   ];
-  for (const p of outerPatches) {
-    paintPatch(tiles, p.cx, p.cy, p.r, p.res, rand);
+  for (const v of midVeins) {
+    paintOrganicVein(tiles, v.nodes, v.res, rand);
   }
 
-  // Guarantee exact nodes for starter factory
-  tiles[30][23].resource = 'wheat';
-  tiles[32][23].resource = 'sugar';
-  tiles[34][24].resource = 'sugar';
+  // 3. Outer Regional Mega-Continents (long exploration & belt logistics targets)
+  const outerVeins: Array<{
+    res: ResourceNode;
+    nodes: Array<{ cx: number; cy: number; r: number }>;
+  }> = [
+    {
+      res: 'wheat',
+      nodes: [
+        { cx: 10, cy: 13, r: 3.6 },
+        { cx: 15, cy: 10, r: 3.8 },
+        { cx: 20, cy: 12, r: 3.3 },
+      ],
+    },
+    {
+      res: 'cacao',
+      nodes: [
+        { cx: 9, cy: 29, r: 3.3 },
+        { cx: 12, cy: 34, r: 3.2 },
+      ],
+    },
+    {
+      res: 'sugar',
+      nodes: [
+        { cx: 63, cy: 11, r: 3.6 },
+        { cx: 68, cy: 14, r: 3.8 },
+        { cx: 66, cy: 19, r: 3.3 },
+      ],
+    },
+    {
+      res: 'berry',
+      nodes: [
+        { cx: 48, cy: 9, r: 3.3 },
+        { cx: 53, cy: 11, r: 3.2 },
+      ],
+    },
+    {
+      res: 'cacao',
+      nodes: [
+        { cx: 10, cy: 65, r: 3.6 },
+        { cx: 15, cy: 69, r: 3.9 },
+        { cx: 21, cy: 67, r: 3.4 },
+      ],
+    },
+    {
+      res: 'milk',
+      nodes: [
+        { cx: 9, cy: 49, r: 3.4 },
+        { cx: 13, cy: 53, r: 3.2 },
+      ],
+    },
+    {
+      res: 'berry',
+      nodes: [
+        { cx: 64, cy: 68, r: 3.7 },
+        { cx: 69, cy: 64, r: 3.8 },
+        { cx: 67, cy: 59, r: 3.3 },
+      ],
+    },
+    {
+      res: 'wheat',
+      nodes: [
+        { cx: 49, cy: 70, r: 3.5 },
+        { cx: 54, cy: 68, r: 3.3 },
+      ],
+    },
+    {
+      res: 'sugar',
+      nodes: [
+        { cx: 70, cy: 44, r: 3.4 },
+        { cx: 68, cy: 49, r: 3.3 },
+      ],
+    },
+  ];
+  for (const v of outerVeins) {
+    paintOrganicVein(tiles, v.nodes, v.res, rand);
+  }
+
+  // Keep a wide, clear Central Factory Plaza around the launchpad (26..54, 26..54)
+  for (let y = 26; y <= 54; y++) {
+    for (let x = 26; x <= 54; x++) {
+      tiles[y][x].resource = null;
+    }
+  }
+
+  // Guarantee exact nodes at the western plaza edge for starter cookie line
+  tiles[38][25].resource = 'wheat';
+  tiles[40][25].resource = 'sugar';
+  tiles[43][25].resource = 'sugar';
 
   const state: GameState = {
     mapWidth: MAP_SIZE,
@@ -183,6 +333,7 @@ export function createInitialGameState(): GameState {
       launchLiftY: 0,
       launched: false,
     },
+    coins: 600,
     starSugar: 4,
     stats: {
       totalProduced: 0,
@@ -204,9 +355,9 @@ export function createInitialGameState(): GameState {
     muted: false,
     simSpeed: 1,
     camera: {
-      x: 29.5,
-      y: 31.8,
-      zoom: 44,
+      x: 35.5,
+      y: 39.5,
+      zoom: 38,
     },
     selectedTool: 'belt',
     buildDir: 1,
@@ -216,69 +367,48 @@ export function createInitialGameState(): GameState {
     time: 0,
   };
 
-  // Starter Bakery Line: Wheat + Sugar -> Oven (Cookie) -> Splitter -> Rocket Silo + 2 Cannons
-  placeInitialBuilding(state, 'sugar_windmill', 21, 31, 0);
-  placeInitialBuilding(state, 'sugar_windmill', 35, 31, 0);
+  // Starter Bakery Line: Wheat + Sugar (x=25) -> Oven (27,39) -> Splitter (29,39) -> Rocket Silo (38,39) + 2 Cannons
+  placeInitialBuilding(state, 'sugar_windmill', 23, 39, 0);
+  placeInitialBuilding(state, 'sugar_windmill', 43, 39, 0);
 
-  // Wheat line
-  placeInitialBuilding(state, 'harvester', 23, 30, 1);
-  placeInitialBuilding(state, 'belt', 24, 30, 1);
-  placeInitialBuilding(state, 'belt', 25, 30, 2);
+  // Wheat line -> Oven
+  placeInitialBuilding(state, 'harvester', 25, 38, 1);
+  placeInitialBuilding(state, 'belt', 26, 38, 1);
+  placeInitialBuilding(state, 'belt', 27, 38, 2);
 
   // Sugar line -> Oven
-  placeInitialBuilding(state, 'harvester', 23, 32, 1);
-  placeInitialBuilding(state, 'belt', 24, 32, 1);
-  placeInitialBuilding(state, 'belt', 25, 32, 0);
+  placeInitialBuilding(state, 'harvester', 25, 40, 1);
+  placeInitialBuilding(state, 'belt', 26, 40, 1);
+  placeInitialBuilding(state, 'belt', 27, 40, 0);
 
-  // Oven baking cookies
-  placeInitialBuilding(state, 'oven', 25, 31, 1, 'r_cookie');
-  placeInitialBuilding(state, 'belt', 26, 31, 1);
-  placeInitialBuilding(state, 'splitter', 27, 31, 1);
+  // Oven baking cookies -> Splitter
+  placeInitialBuilding(state, 'oven', 27, 39, 1, 'r_cookie');
+  placeInitialBuilding(state, 'belt', 28, 39, 1);
+  placeInitialBuilding(state, 'splitter', 29, 39, 1);
 
-  // East branch -> Rocket Silo
-  placeInitialBuilding(state, 'belt', 28, 31, 1);
-  placeInitialBuilding(state, 'belt', 29, 31, 1);
+  // East branch -> Rocket Silo (x = 30..37, y = 39 -> 38,39)
+  for (let bx = 30; bx <= 37; bx++) {
+    placeInitialBuilding(state, 'belt', bx, 39, 1);
+  }
 
   // North branch -> Upper Cookie Cannon
-  placeInitialBuilding(state, 'belt', 27, 30, 0);
-  placeInitialBuilding(state, 'belt', 27, 29, 0);
-  placeInitialBuilding(state, 'cannon', 27, 28, 3);
+  placeInitialBuilding(state, 'belt', 29, 38, 0);
+  placeInitialBuilding(state, 'belt', 29, 37, 0);
+  placeInitialBuilding(state, 'cannon', 29, 36, 3);
 
   // South branch -> Lower Cookie Cannon
-  placeInitialBuilding(state, 'belt', 27, 32, 2);
-  placeInitialBuilding(state, 'belt', 27, 33, 2);
-  placeInitialBuilding(state, 'cannon', 27, 34, 3);
+  placeInitialBuilding(state, 'belt', 29, 40, 2);
+  placeInitialBuilding(state, 'belt', 29, 41, 2);
+  placeInitialBuilding(state, 'cannon', 29, 42, 3);
 
-  // Direct sugar line into Rocket Silo for Phase 1
-  placeInitialBuilding(state, 'harvester', 24, 34, 1);
-  placeInitialBuilding(state, 'belt', 25, 34, 1);
-  placeInitialBuilding(state, 'belt', 26, 34, 1);
-  placeInitialBuilding(state, 'belt', 27, 35, 1); // Wait: let's route around cannon at (27,34)
-  // Adjust route neatly around (27,34) cannon:
-  // Put harvester at (24,35) -> (25,35) -> (26,35) -> (27,35) -> (28,35) -> (29,35) -> (29,34) -> (29,33) -> (30,33 Silo)
-  // Remove (24,34),(25,34),(26,34) and redo cleanly:
-  for (const [rx, ry] of [
-    [24, 34],
-    [25, 34],
-    [26, 34],
-    [27, 35],
-  ]) {
-    const bid = state.tiles[ry][rx].buildingId;
-    if (bid) {
-      delete state.buildings[bid];
-      state.tiles[ry][rx].buildingId = null;
-    }
+  // Direct sugar belt across open plaza into Rocket Silo for Phase 1
+  placeInitialBuilding(state, 'harvester', 25, 43, 1);
+  for (let bx = 26; bx <= 36; bx++) {
+    placeInitialBuilding(state, 'belt', bx, 43, 1);
   }
-  state.tiles[35][23].resource = 'sugar';
-  placeInitialBuilding(state, 'harvester', 23, 35, 1);
-  placeInitialBuilding(state, 'belt', 24, 35, 1);
-  placeInitialBuilding(state, 'belt', 25, 35, 1);
-  placeInitialBuilding(state, 'belt', 26, 35, 1);
-  placeInitialBuilding(state, 'belt', 27, 35, 1);
-  placeInitialBuilding(state, 'belt', 28, 35, 1);
-  placeInitialBuilding(state, 'belt', 29, 35, 0);
-  placeInitialBuilding(state, 'belt', 29, 34, 0);
-  placeInitialBuilding(state, 'belt', 29, 33, 1);
+  placeInitialBuilding(state, 'belt', 37, 43, 0);
+  placeInitialBuilding(state, 'belt', 37, 42, 0);
+  placeInitialBuilding(state, 'belt', 37, 41, 1);
 
   return state;
 }

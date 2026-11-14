@@ -6,7 +6,7 @@ import {
   GameState,
   Slime,
 } from '../types/game';
-import { dirDelta, inBounds, MAP_SIZE, SILO_MAX, SILO_MIN } from '../core/world';
+import { dirDelta, inBounds, MAP_CENTER, MAP_SIZE, SILO_MAX, SILO_MIN } from '../core/world';
 import { LoadedAssets } from './assetLoader';
 import { SpriteBank } from './spriteBake';
 
@@ -628,7 +628,7 @@ export class GameRenderer {
     ctx.strokeStyle = '#F472B6';
     ctx.lineWidth = 0.1;
     ctx.beginPath();
-    ctx.arc(32, 32, 1.35 + pulse, 0, Math.PI * 2);
+    ctx.arc(MAP_CENTER, MAP_CENTER, 1.35 + pulse, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
@@ -643,7 +643,7 @@ export class GameRenderer {
       : 0;
 
     ctx.save();
-    ctx.translate(32 + shake, 32 - lift * 0.45);
+    ctx.translate(MAP_CENTER + shake, MAP_CENTER - lift * 0.45);
 
     // Shadow on pad shrinks as rocket climbs
     const shadowScale = Math.max(0.1, 1 - lift * 0.04);

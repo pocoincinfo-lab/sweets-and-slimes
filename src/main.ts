@@ -10,7 +10,7 @@ import {
   summonWave,
 } from './core/simulation';
 import { clearSavedGameState, loadGameState, saveGameState } from './core/storage';
-import { createInitialGameState, inBounds, MAP_SIZE } from './core/world';
+import { createInitialGameState, inBounds, MAP_CENTER, MAP_SIZE } from './core/world';
 import { loadGameAssets } from './render/assetLoader';
 import { GameRenderer } from './render/renderer';
 import { createSpriteBank } from './render/spriteBake';
@@ -32,6 +32,8 @@ async function bootstrap(): Promise<void> {
 
   const keysPressed = new Set<string>();
   let hoverTile: { x: number; y: number } | null = null;
+  let lastClientX = 0;
+  let lastClientY = 0;
   let isPanning = false;
   let panStartScreen = { x: 0, y: 0 };
   let panStartCam = { x: 0, y: 0 };
@@ -49,8 +51,8 @@ async function bootstrap(): Promise<void> {
       audio.playRotate();
     },
     onCenterSilo: () => {
-      state.camera.x = 32;
-      state.camera.y = 32;
+      state.camera.x = MAP_CENTER;
+      state.camera.y = MAP_CENTER;
     },
     onJumpCamera: (tx, ty) => {
       state.camera.x = Math.max(0, Math.min(MAP_SIZE, tx));
@@ -111,7 +113,7 @@ async function bootstrap(): Promise<void> {
       clearSavedGameState();
       state = createInitialGameState();
       audio.setMuted(state.muted);
-      addFloatingText(state, 32, 30, '🌱 新しいお菓子惑星へ到着！', '#F472B6', 1.2);
+      addFloatingText(state, MAP_CENTER, MAP_CENTER - 2, '🌱 新しいお菓子惑星へ到着！', '#F472B6', 1.2);
     },
     onDismissVictory: () => {
       state.unlockedModalDismissed = true;
@@ -158,8 +160,8 @@ async function bootstrap(): Promise<void> {
     } else if (k === 'q') {
       state.selectedTool = 'inspect';
     } else if (k === 'h') {
-      state.camera.x = 32;
-      state.camera.y = 32;
+      state.camera.x = MAP_CENTER;
+      state.camera.y = MAP_CENTER;
     } else if (k === ' ') {
       e.preventDefault();
       state.paused = !state.paused;
@@ -246,8 +248,20 @@ async function bootstrap(): Promise<void> {
   });
 
   window.addEventListener('pointermove', (e) => {
+    lastClientX = e.clientX;
+    lastClientY = e.clientY;
     const { tx, ty } = renderer.screenToWorld(state, canvas, e.clientX, e.clientY);
     hoverTile = { x: tx, y: ty };
+    if (e.target === canvas) {
+      hud.clearUiHover();
+    }
+    hud.updateWorldHover(
+      state,
+      hoverTile,
+      lastClientX,
+      lastClientY,
+      isPanning || isLeftDragging || hud.isWelcomeOpen()
+    );
 
     if (isPanning) {
       const dx = e.clientX - panStartScreen.x;
@@ -323,6 +337,11 @@ async function bootstrap(): Promise<void> {
     }
   });
 
+  canvas.addEventListener('pointerleave', () => {
+    hoverTile = null;
+    hud.updateWorldHover(state, null, 0, 0, true);
+  });
+
   canvas.addEventListener(
     'wheel',
     (e) => {
@@ -362,6 +381,15 @@ async function bootstrap(): Promise<void> {
     stepSimulation(state, dt);
     renderer.render(ctx, state, window.innerWidth, window.innerHeight, hoverTile);
     hud.sync(state);
+    if (hoverTile) {
+      hud.updateWorldHover(
+        state,
+        hoverTile,
+        lastClientX,
+        lastClientY,
+        isPanning || isLeftDragging || hud.isWelcomeOpen()
+      );
+    }
 
     const miniCanvas = hud.getMinimapCanvas();
     if (miniCanvas) {

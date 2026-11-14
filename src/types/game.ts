@@ -67,7 +67,7 @@ export interface BuildingDef {
   shortName: string;
   category: BuildingCategory;
   description: string;
-  costStars: number;
+  costCoins: number;
   powerDemand: number;
   powerSupply: number;
   craftSpeed: number;
@@ -253,6 +253,7 @@ export interface GameState {
   particles: Particle[];
   floatingTexts: FloatingText[];
   rocket: RocketState;
+  coins: number;
   starSugar: number;
   stats: GameStats;
   wave: WaveState;

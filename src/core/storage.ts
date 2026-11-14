@@ -1,7 +1,7 @@
 import { GameState } from '../types/game';
 import { createInitialGameState } from './world';
 
-const SAVE_KEY = 'sweets_and_slimes_save_v2';
+const SAVE_KEY = 'sweets_and_slimes_save_v3';
 
 export function saveGameState(state: GameState): boolean {
   try {
@@ -28,6 +28,9 @@ export function loadGameState(): GameState {
     }
     if (!parsed.simSpeed) {
       parsed.simSpeed = 1;
+    }
+    if (typeof parsed.coins !== 'number') {
+      parsed.coins = 600;
     }
     return parsed;
   } catch {
