@@ -64,10 +64,12 @@ export class GameHud {
 
   private encyclopediaOpen = false;
   private encyclopediaTab: 'recipes' | 'slimes' = 'recipes';
+  private menuOpen = false;
   private welcomeOpen = true;
   private lastSideSignature = '';
   private lastRocketSignature = '';
   private lastStatsSignature = '';
+  private lastMenuStatsSignature = '';
   private currentRocketPhase = 1;
   private uiHoverActive = false;
   private popoverSource: 'none' | 'ui' | 'world' = 'none';
@@ -75,6 +77,12 @@ export class GameHud {
   // Cached DOM references
   private rocketCardEl!: HTMLElement;
   private statsBarEl!: HTMLElement;
+  private btnMenuEl!: HTMLButtonElement;
+  private menuPanelEl!: HTMLElement;
+  private menuStatsEl!: HTMLElement;
+  private badgePeacefulEl!: HTMLElement;
+  private badgeMuteEl!: HTMLElement;
+  private iconMuteEl!: HTMLElement;
   private btnPeaceful!: HTMLButtonElement;
   private btnMute!: HTMLButtonElement;
   private btnPause!: HTMLButtonElement;
@@ -110,18 +118,13 @@ export class GameHud {
     this.root.innerHTML = `
       <div class="top-hud">
         <div class="glass-panel rocket-card" id="rocket-card"></div>
-        <div class="glass-panel stats-bar" id="stats-bar"></div>
-        <div class="glass-panel actions-bar" id="actions-bar">
-          <button class="btn btn-icon btn-pink" id="btn-rush" data-tip-kind="ui" data-tip-title="🍮 おかわりウェーブ" data-tip-desc="今すぐスライムを呼び寄せてキラキラ星とコインを稼ぎます。">🍮</button>
-          <button class="btn btn-icon" id="btn-peaceful" data-tip-kind="ui" data-tip-title="🕊️ 平和モード切替" data-tip-desc="スライムの自動来訪を止めて、自分のペースで工場を組み立てられます。">🕊️</button>
-          <button class="btn btn-icon" id="btn-speed" data-tip-kind="ui" data-tip-title="⏩ ゲーム速度切替" data-tip-desc="工場の稼働スピードを 1x / 2x / 5x で切り替えます。">⏩ 1x</button>
-          <button class="btn btn-icon" id="btn-pause" data-tip-kind="ui" data-tip-title="⏸️ 一時停止 / 再開" data-tip-desc="工場とスライムを一時停止します（スペースキーでも切替）。">⏸️</button>
-          <button class="btn btn-icon" id="btn-encyc" data-tip-kind="ui" data-tip-title="📖 お菓子＆スライム図鑑" data-tip-desc="全15種類のレシピとスライムの特徴・報酬を確認できます。">📖</button>
-          <button class="btn btn-icon" id="btn-mute" data-tip-kind="ui" data-tip-title="🔊 効果音 ON / OFF" data-tip-desc="クリック音や効果音のミュートを切り替えます。">🔊</button>
-          <button class="btn btn-icon btn-amber" id="btn-demo" data-tip-kind="ui" data-tip-title="🚀 次Phaseへスキップ（テスト用）" data-tip-desc="現在のフェーズ要求を即座に満たし、次のフェーズへ進みます。">🚀</button>
-          <button class="btn btn-icon" id="btn-save" data-tip-kind="ui" data-tip-title="💾 手動セーブ" data-tip-desc="現在の工場データをブラウザへ保存します。">💾</button>
-          <button class="btn btn-icon" id="btn-reset" data-tip-kind="ui" data-tip-title="🔄 最初からやり直す" data-tip-desc="セーブデータを削除して新しいお菓子惑星でスタートします。">🔄</button>
-          <button class="btn btn-icon" id="btn-help" data-tip-kind="ui" data-tip-title="❓ 遊び方ガイド" data-tip-desc="基本操作とロケット発射までの遊び方を表示します。">❓</button>
+        <div class="top-right-hud">
+          <div class="glass-panel stats-bar" id="stats-bar"></div>
+          <div class="glass-panel actions-bar" id="actions-bar">
+            <button class="btn btn-icon btn-pink" id="btn-rush" data-tip-kind="ui" data-tip-title="🍮 おかわりウェーブ" data-tip-desc="今すぐスライムを呼び寄せてキラキラ星とコインを稼ぎます。">🍮</button>
+            <button class="btn btn-icon" id="btn-pause" data-tip-kind="ui" data-tip-title="⏸️ 一時停止 / 再開" data-tip-desc="工場とスライムを一時停止します（スペースキーでも切替）。">⏸️</button>
+            <button class="btn btn-icon" id="btn-speed" data-tip-kind="ui" data-tip-title="⏩ ゲーム速度切替" data-tip-desc="工場の稼働スピードを 1x / 2x / 5x で切り替えます。">⏩ 1x</button>
+          </div>
         </div>
       </div>
 
@@ -138,6 +141,49 @@ export class GameHud {
           </div>
         </div>
         <div class="glass-panel side-panel hidden" id="side-panel"></div>
+        <div class="menu-corner">
+          <div class="glass-panel menu-panel hidden" id="menu-panel">
+            <div class="menu-header">
+              <span>🍰 メニュー</span>
+              <button class="minimap-toggle" id="btn-close-menu">✕</button>
+            </div>
+            <div class="menu-stats" id="menu-stats">📦 0個/分 ・ 🐾 0匹満腹</div>
+            <div class="menu-list">
+              <button class="menu-item" id="btn-encyc" data-tip-kind="ui" data-tip-title="📖 お菓子＆スライム図鑑" data-tip-desc="全15種類のレシピとスライムの特徴・報酬を確認できます。">
+                <span class="menu-item-icon">📖</span>
+                <span class="menu-item-label">図鑑（レシピ・スライム）</span>
+              </button>
+              <button class="menu-item" id="btn-peaceful" data-tip-kind="ui" data-tip-title="🕊️ 平和モード切替" data-tip-desc="スライムの自動来訪を止めて、自分のペースで工場を組み立てられます。">
+                <span class="menu-item-icon">🕊️</span>
+                <span class="menu-item-label">平和モード</span>
+                <span class="menu-item-badge" id="badge-peaceful">OFF</span>
+              </button>
+              <button class="menu-item" id="btn-mute" data-tip-kind="ui" data-tip-title="🔊 効果音 ON / OFF" data-tip-desc="クリック音や効果音のミュートを切り替えます。">
+                <span class="menu-item-icon" id="icon-mute">🔊</span>
+                <span class="menu-item-label">効果音</span>
+                <span class="menu-item-badge" id="badge-mute">ON</span>
+              </button>
+              <button class="menu-item" id="btn-help" data-tip-kind="ui" data-tip-title="❓ 遊び方ガイド" data-tip-desc="基本操作とロケット発射までの遊び方を表示します。">
+                <span class="menu-item-icon">❓</span>
+                <span class="menu-item-label">遊び方ガイド</span>
+              </button>
+              <button class="menu-item" id="btn-save" data-tip-kind="ui" data-tip-title="💾 手動セーブ" data-tip-desc="現在の工場データをブラウザへ保存します。">
+                <span class="menu-item-icon">💾</span>
+                <span class="menu-item-label">セーブする</span>
+              </button>
+              <button class="menu-item" id="btn-demo" data-tip-kind="ui" data-tip-title="🚀 次Phaseへスキップ（テスト用）" data-tip-desc="現在のフェーズ要求を即座に満たし、次のフェーズへ進みます。">
+                <span class="menu-item-icon">🚀</span>
+                <span class="menu-item-label">次Phaseへ進む</span>
+                <span class="menu-item-badge">テスト用</span>
+              </button>
+              <button class="menu-item" id="btn-reset" data-tip-kind="ui" data-tip-title="🔄 最初からやり直す" data-tip-desc="セーブデータを削除して新しいお菓子惑星でスタートします。">
+                <span class="menu-item-icon">🔄</span>
+                <span class="menu-item-label">最初からやり直す</span>
+              </button>
+            </div>
+          </div>
+          <button class="menu-fab" id="btn-menu" data-tip-kind="ui" data-tip-title="⚙️ メニュー" data-tip-desc="図鑑・設定・セーブ・遊び方などの機能を開きます。">⚙️</button>
+        </div>
       </div>
 
       <div class="bottom-wrap">
@@ -199,6 +245,12 @@ export class GameHud {
 
     this.rocketCardEl = this.root.querySelector('#rocket-card')!;
     this.statsBarEl = this.root.querySelector('#stats-bar')!;
+    this.btnMenuEl = this.root.querySelector('#btn-menu')!;
+    this.menuPanelEl = this.root.querySelector('#menu-panel')!;
+    this.menuStatsEl = this.root.querySelector('#menu-stats')!;
+    this.badgePeacefulEl = this.root.querySelector('#badge-peaceful')!;
+    this.badgeMuteEl = this.root.querySelector('#badge-mute')!;
+    this.iconMuteEl = this.root.querySelector('#icon-mute')!;
     this.btnPeaceful = this.root.querySelector('#btn-peaceful')!;
     this.btnMute = this.root.querySelector('#btn-mute')!;
     this.btnPause = this.root.querySelector('#btn-pause')!;
@@ -216,6 +268,18 @@ export class GameHud {
     this.victoryModalEl = this.root.querySelector('#victory-modal')!;
     this.victoryStatsEl = this.root.querySelector('#victory-stats')!;
 
+    this.btnMenuEl.addEventListener('click', () => {
+      this.menuOpen = !this.menuOpen;
+      if (this.menuOpen) {
+        this.encyclopediaOpen = false;
+        this.lastSideSignature = '';
+        this.cb.onCloseInspect();
+        this.hidePopover();
+      }
+    });
+    this.root.querySelector('#btn-close-menu')!.addEventListener('click', () => {
+      this.menuOpen = false;
+    });
     this.root.querySelector('#btn-rush')!.addEventListener('click', () => this.cb.onRushWave());
     this.btnPeaceful.addEventListener('click', () => this.cb.onTogglePeaceful());
     this.btnDemo.addEventListener('click', () => this.cb.onDemoAdvancePhase());
@@ -225,10 +289,20 @@ export class GameHud {
     this.btnEncyc.addEventListener('click', () => {
       this.encyclopediaOpen = !this.encyclopediaOpen;
       this.lastSideSignature = '';
+      if (this.encyclopediaOpen) {
+        this.menuOpen = false;
+      }
     });
-    this.root.querySelector('#btn-save')!.addEventListener('click', () => this.cb.onSave());
-    this.root.querySelector('#btn-reset')!.addEventListener('click', () => this.cb.onReset());
+    this.root.querySelector('#btn-save')!.addEventListener('click', () => {
+      this.menuOpen = false;
+      this.cb.onSave();
+    });
+    this.root.querySelector('#btn-reset')!.addEventListener('click', () => {
+      this.menuOpen = false;
+      this.cb.onReset();
+    });
     this.root.querySelector('#btn-help')!.addEventListener('click', () => {
+      this.menuOpen = false;
       this.welcomeOpen = true;
       this.welcomeModalEl.classList.remove('hidden');
     });
@@ -321,7 +395,14 @@ export class GameHud {
     this.hoverPopoverEl.classList.add('hidden');
   }
 
-  private positionPopover(html: string, source: 'ui' | 'world', anchorRect?: DOMRect, cx = 0, cy = 0): void {
+  private positionPopover(
+    html: string,
+    source: 'ui' | 'world',
+    anchorRect?: DOMRect,
+    cx = 0,
+    cy = 0,
+    preferLeft = false
+  ): void {
     this.popoverSource = source;
     this.hoverPopoverEl.innerHTML = html;
     this.hoverPopoverEl.classList.remove('hidden');
@@ -335,11 +416,16 @@ export class GameHud {
     let top = 12;
 
     if (anchorRect) {
-      left = Math.max(10, Math.min(vw - pw - 10, anchorRect.left + anchorRect.width / 2 - pw / 2));
-      if (anchorRect.top > vh * 0.52) {
-        top = Math.max(8, anchorRect.top - ph - 10);
+      if (preferLeft && anchorRect.left - pw - 10 >= 10) {
+        left = anchorRect.left - pw - 10;
+        top = Math.max(8, Math.min(vh - ph - 10, anchorRect.top + anchorRect.height / 2 - ph / 2));
       } else {
-        top = Math.min(vh - ph - 10, anchorRect.bottom + 8);
+        left = Math.max(10, Math.min(vw - pw - 10, anchorRect.left + anchorRect.width / 2 - pw / 2));
+        if (anchorRect.top > vh * 0.52) {
+          top = Math.max(8, anchorRect.top - ph - 10);
+        } else {
+          top = Math.min(vh - ph - 10, anchorRect.bottom + 8);
+        }
       }
     } else {
       left = cx + 18 + pw > vw ? Math.max(10, cx - pw - 14) : cx + 18;
@@ -364,8 +450,13 @@ export class GameHud {
   }
 
   private showPopoverForUi(el: HTMLElement): void {
+    if (el.id === 'btn-menu' && this.menuOpen) {
+      this.hidePopover();
+      return;
+    }
     const kind = el.dataset.tipKind;
     const rect = el.getBoundingClientRect();
+    const preferLeft = el.classList.contains('menu-item');
 
     if (kind === 'tool') {
       const toolType = el.dataset.tipTool as BuildingType;
@@ -506,7 +597,10 @@ export class GameHud {
         ${desc ? `<div class="pop-desc">${desc}</div>` : ''}
       `,
       'ui',
-      rect
+      rect,
+      0,
+      0,
+      preferLeft
     );
   }
 
@@ -765,16 +859,11 @@ export class GameHud {
       `;
     }
 
-    // 3. Action icon button states
-    this.btnPeaceful.classList.toggle('btn-active', state.peacefulMode);
-    this.btnPeaceful.textContent = '🕊️';
-    this.btnMute.textContent = state.muted ? '🔇' : '🔊';
+    // 3. Top action icon button states
     this.btnPause.textContent = state.paused ? '▶️' : '⏸️';
     this.btnPause.classList.toggle('btn-active', state.paused);
     this.btnSpeed.textContent = `⏩${state.simSpeed}x`;
     this.btnSpeed.classList.toggle('btn-active', state.simSpeed > 1);
-    this.btnEncyc.classList.toggle('btn-active', this.encyclopediaOpen);
-    this.btnDemo.disabled = state.rocket.launching || state.rocket.launched;
 
     // 4. Launch countdown banner
     if (state.rocket.launching && !state.rocket.launched) {
@@ -806,8 +895,9 @@ export class GameHud {
       rotEl.textContent = DIR_ARROWS[state.buildDir];
     }
 
-    // 6. Side panel (Encyclopedia or Building Inspector)
+    // 6. Side panel (Encyclopedia or Building Inspector) & bottom-right Menu panel
     this.syncSidePanel(state);
+    this.syncMenuPanel(state);
 
     // 7. Victory Modal
     if (
@@ -826,6 +916,26 @@ export class GameHud {
     }
   }
 
+  private syncMenuPanel(state: GameState): void {
+    this.btnMenuEl.classList.toggle('btn-active', this.menuOpen);
+    this.menuPanelEl.classList.toggle('hidden', !this.menuOpen);
+
+    this.btnPeaceful.classList.toggle('active', state.peacefulMode);
+    this.badgePeacefulEl.textContent = state.peacefulMode ? 'ON' : 'OFF';
+    this.btnMute.classList.toggle('active', !state.muted);
+    this.iconMuteEl.textContent = state.muted ? '🔇' : '🔊';
+    this.badgeMuteEl.textContent = state.muted ? 'OFF' : 'ON';
+    this.btnEncyc.classList.toggle('active', this.encyclopediaOpen);
+    this.btnDemo.disabled = state.rocket.launching || state.rocket.launched;
+
+    const ipm = getItemsPerMinute(state);
+    const menuStatsSig = `${ipm}|${state.stats.slimesFed}`;
+    if (menuStatsSig !== this.lastMenuStatsSignature) {
+      this.lastMenuStatsSignature = menuStatsSig;
+      this.menuStatsEl.textContent = `📦 ${ipm}個/分 ・ 🐾 ${state.stats.slimesFed}匹満腹`;
+    }
+  }
+
   private syncSidePanel(state: GameState): void {
     const inspected = state.inspectedBuildingId
       ? state.buildings[state.inspectedBuildingId]
@@ -837,6 +947,9 @@ export class GameHud {
       return;
     }
 
+    if (this.menuOpen) {
+      this.menuOpen = false;
+    }
     this.sidePanelEl.classList.remove('hidden');
 
     if (this.encyclopediaOpen) {
