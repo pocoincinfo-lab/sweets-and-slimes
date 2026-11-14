@@ -1,5 +1,5 @@
 import { BUILDINGS } from '../data/buildings';
-import { ITEMS, SLIME_DEFS } from '../data/items';
+import { SLIME_DEFS } from '../data/items';
 import {
   BuildingInstance,
   Direction,
@@ -11,6 +11,17 @@ import { LoadedAssets } from './assetLoader';
 import { SpriteBank } from './spriteBake';
 
 const OUTLINE = '#5B3A4D';
+
+const RESOURCE_TILE_THEME: Record<
+  string,
+  { fill: string; edge: string; mini: string }
+> = {
+  wheat: { fill: '#FEF3C7', edge: '#F59E0B', mini: '#FDE047' },
+  sugar: { fill: '#E0F2FE', edge: '#38BDF8', mini: '#7DD3FC' },
+  berry: { fill: '#FFE4E6', edge: '#FB7185', mini: '#FDA4AF' },
+  milk: { fill: '#F8FAFC', edge: '#94A3B8', mini: '#FFFFFF' },
+  cacao: { fill: '#EFE3D6', edge: '#B48A6A', mini: '#D6B499' },
+};
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
@@ -109,25 +120,46 @@ export class GameRenderer {
         ctx.fillStyle = even ? '#DCFCE7' : '#D1FAE5';
         ctx.fillRect(x, y, 1.01, 1.01);
 
-        if (zoom >= 22 && !tile.isRocketSilo && !tile.resource && tile.decorSeed > 0.88) {
-          // Cute tiny clover / pastel flower
+        if (zoom >= 22 && !tile.isRocketSilo && !tile.resource && tile.decorSeed > 0.9) {
+          // Single tiny pastel blossom sparkle on meadow grass
           ctx.fillStyle = tile.decorSeed > 0.95 ? '#FBCFE8' : '#FEF08A';
-          ctx.beginPath();
-          ctx.arc(x + 0.28, y + 0.32, 0.06, 0, Math.PI * 2);
-          ctx.arc(x + 0.34, y + 0.32, 0.06, 0, Math.PI * 2);
+          drawStar(ctx, x + 0.35, y + 0.35, 0.085, 0.032, 4);
           ctx.fill();
         }
 
         if (tile.resource) {
-          const itemDef = ITEMS[tile.resource];
-          ctx.fillStyle = `${itemDef.color}36`;
-          ctx.beginPath();
-          ctx.arc(x + 0.5, y + 0.5, 0.44, 0, Math.PI * 2);
-          ctx.fill();
+          const theme = RESOURCE_TILE_THEME[tile.resource] ?? {
+            fill: '#F1F5F9',
+            edge: '#94A3B8',
+            mini: '#CBD5E1',
+          };
+          ctx.fillStyle = theme.fill;
+          ctx.fillRect(x, y, 1.02, 1.02);
 
-          const spr = this.sprites.items[tile.resource];
-          if (spr) {
-            ctx.drawImage(spr, x + 0.14, y + 0.14, 0.72, 0.72);
+          // Soft perimeter border only along outside of connected patch
+          ctx.fillStyle = theme.edge;
+          const borderW = 0.08;
+          if (!inBounds(x - 1, y) || state.tiles[y][x - 1].resource !== tile.resource) {
+            ctx.fillRect(x, y, borderW, 1.01);
+          }
+          if (!inBounds(x + 1, y) || state.tiles[y][x + 1].resource !== tile.resource) {
+            ctx.fillRect(x + 1 - borderW, y, borderW, 1.01);
+          }
+          if (!inBounds(x, y - 1) || state.tiles[y - 1][x].resource !== tile.resource) {
+            ctx.fillRect(x, y, 1.01, borderW);
+          }
+          if (!inBounds(x, y + 1) || state.tiles[y + 1][x].resource !== tile.resource) {
+            ctx.fillRect(x, y + 1 - borderW, 1.01, borderW);
+          }
+
+          // Sparse landmark icon (~1 in 7 tiles, hidden once built on)
+          if (!tile.buildingId && (x * 3 + y * 5) % 7 === 0) {
+            const spr = this.sprites.items[tile.resource];
+            if (spr) {
+              ctx.globalAlpha = 0.9;
+              ctx.drawImage(spr, x + 0.19, y + 0.19, 0.62, 0.62);
+              ctx.globalAlpha = 1;
+            }
           }
         }
       }
@@ -1066,5 +1098,116 @@ export class GameRenderer {
 
   getAssets(): LoadedAssets | null {
     return this.assets;
+  }
+
+  /**
+   * Renders a cute pastel overview minimap with resource islands, buildings,
+   * active slimes, central rocket silo, and current camera viewport box.
+   */
+  renderMinimap(
+    ctx: CanvasRenderingContext2D,
+    state: GameState,
+    width: number,
+    height: number,
+    viewportWidth: number,
+    viewportHeight: number
+  ): void {
+    const scale = width / MAP_SIZE;
+    const cell = Math.ceil(scale * 1.05);
+
+    ctx.fillStyle = '#DCFCE7';
+    ctx.fillRect(0, 0, width, height);
+
+    for (let y = 0; y < MAP_SIZE; y++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        const tile = state.tiles[y][x];
+        if (tile.buildingId) {
+          const b = state.buildings[tile.buildingId];
+          if (b) {
+            if (b.type === 'harvester') ctx.fillStyle = '#10B981';
+            else if (
+              b.type === 'cannon' ||
+              b.type === 'gatling_cannon' ||
+              b.type === 'sugar_windmill'
+            ) {
+              ctx.fillStyle = '#F43F5E';
+            } else if (
+              b.type === 'belt' ||
+              b.type === 'express_belt' ||
+              b.type === 'splitter' ||
+              b.type === 'tunnel'
+            ) {
+              ctx.fillStyle = '#F59E0B';
+            } else {
+              ctx.fillStyle = '#8B5CF6';
+            }
+            ctx.fillRect(x * scale, y * scale, cell, cell);
+            continue;
+          }
+        }
+
+        if (tile.resource) {
+          const theme = RESOURCE_TILE_THEME[tile.resource];
+          ctx.fillStyle = theme ? theme.mini : '#CBD5E1';
+          ctx.fillRect(x * scale, y * scale, cell, cell);
+        }
+      }
+    }
+
+    // Central Launchpad Silo (4x4)
+    const siloX = SILO_MIN * scale;
+    const siloSize = (SILO_MAX - SILO_MIN + 1) * scale;
+    ctx.fillStyle = '#EC4899';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(ctx, siloX - 1, siloX - 1, siloSize + 2, siloSize + 2, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#FEF08A';
+    drawStar(
+      ctx,
+      (SILO_MIN + 2) * scale,
+      (SILO_MIN + 2) * scale,
+      siloSize * 0.42,
+      siloSize * 0.2,
+      4
+    );
+    ctx.fill();
+
+    // Active slimes
+    for (const s of state.slimes) {
+      const def = SLIME_DEFS[s.type];
+      ctx.fillStyle = s.type === 'king_slime' ? '#DB2777' : def.color;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(
+        s.x * scale,
+        s.y * scale,
+        Math.max(2.2, def.baseRadius * scale * 1.4),
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Camera viewport frame
+    const visW = viewportWidth / state.camera.zoom;
+    const visH = viewportHeight / state.camera.zoom;
+    const vx = (state.camera.x - visW / 2) * scale;
+    const vy = (state.camera.y - visH / 2) * scale;
+    const vw = visW * scale;
+    const vh = visH * scale;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.fillRect(vx, vy, vw, vh);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(vx, vy, vw, vh);
+    ctx.strokeStyle = '#EC4899';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(vx + 1, vy + 1, Math.max(0, vw - 2), Math.max(0, vh - 2));
   }
 }

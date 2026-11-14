@@ -52,6 +52,10 @@ async function bootstrap(): Promise<void> {
       state.camera.x = 32;
       state.camera.y = 32;
     },
+    onJumpCamera: (tx, ty) => {
+      state.camera.x = Math.max(0, Math.min(MAP_SIZE, tx));
+      state.camera.y = Math.max(0, Math.min(MAP_SIZE, ty));
+    },
     onRushWave: () => {
       audio.unlock();
       if (state.peacefulMode) {
@@ -358,6 +362,21 @@ async function bootstrap(): Promise<void> {
     stepSimulation(state, dt);
     renderer.render(ctx, state, window.innerWidth, window.innerHeight, hoverTile);
     hud.sync(state);
+
+    const miniCanvas = hud.getMinimapCanvas();
+    if (miniCanvas) {
+      const mctx = miniCanvas.getContext('2d');
+      if (mctx) {
+        renderer.renderMinimap(
+          mctx,
+          state,
+          miniCanvas.width,
+          miniCanvas.height,
+          window.innerWidth,
+          window.innerHeight
+        );
+      }
+    }
 
     autosaveTimer += dt;
     if (autosaveTimer >= 10) {

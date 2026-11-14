@@ -7,6 +7,7 @@ import {
   demolishAt,
   getItemsPerMinute,
 } from '../core/simulation';
+import { MAP_SIZE } from '../core/world';
 import { LoadedAssets } from '../render/assetLoader';
 import { SpriteBank } from '../render/spriteBake';
 import { BuildingType, GameState, ItemId, SlimeType } from '../types/game';
@@ -15,6 +16,7 @@ export interface HudCallbacks {
   onSelectTool: (tool: BuildingType | 'demolish' | 'inspect') => void;
   onRotate: () => void;
   onCenterSilo: () => void;
+  onJumpCamera: (x: number, y: number) => void;
   onRushWave: () => void;
   onTogglePeaceful: () => void;
   onDemoAdvancePhase: () => void;
@@ -29,6 +31,21 @@ export interface HudCallbacks {
 }
 
 const DIR_LABELS = ['北 ↑', '東 →', '南 ↓', '西 ←'];
+
+const BUILDING_EMOJI: Record<BuildingType, string> = {
+  belt: '➡️',
+  express_belt: '🌈',
+  splitter: '🔀',
+  tunnel: '🚇',
+  harvester: '⛏️',
+  oven: '🔥',
+  mixer: '🥣',
+  patisserie: '🧁',
+  confectioner: '🏰',
+  cannon: '🎯',
+  gatling_cannon: '💥',
+  sugar_windmill: '🎡',
+};
 
 export class GameHud {
   private root: HTMLElement;
@@ -52,6 +69,10 @@ export class GameHud {
   private btnDemo!: HTMLButtonElement;
   private countdownEl!: HTMLElement;
   private sidePanelEl!: HTMLElement;
+  private minimapCanvasEl!: HTMLCanvasElement;
+  private minimapBodyEl!: HTMLElement;
+  private minimapToggleEl!: HTMLButtonElement;
+  private minimapOpen = true;
   private hintStripEl!: HTMLElement;
   private bottomDockEl!: HTMLElement;
   private welcomeModalEl!: HTMLElement;
@@ -93,6 +114,16 @@ export class GameHud {
       <div class="countdown-banner hidden" id="countdown-banner"></div>
 
       <div class="middle-area">
+        <div class="glass-panel minimap-card" id="minimap-card">
+          <div class="minimap-header">
+            <span>🍓 スイーツマップ</span>
+            <button class="minimap-toggle" id="minimap-toggle" title="ミニマップを折りたたむ">−</button>
+          </div>
+          <div class="minimap-body" id="minimap-body">
+            <canvas id="minimap-canvas" width="156" height="156" title="クリック/ドラッグでカメラ移動"></canvas>
+            <div class="minimap-legend">🚀基地 🌾資源 🏭工場 🍮敵</div>
+          </div>
+        </div>
         <div class="glass-panel side-panel hidden" id="side-panel"></div>
       </div>
 
@@ -162,6 +193,9 @@ export class GameHud {
     this.btnDemo = this.root.querySelector('#btn-demo')!;
     this.countdownEl = this.root.querySelector('#countdown-banner')!;
     this.sidePanelEl = this.root.querySelector('#side-panel')!;
+    this.minimapCanvasEl = this.root.querySelector('#minimap-canvas')!;
+    this.minimapBodyEl = this.root.querySelector('#minimap-body')!;
+    this.minimapToggleEl = this.root.querySelector('#minimap-toggle')!;
     this.hintStripEl = this.root.querySelector('#hint-strip')!;
     this.bottomDockEl = this.root.querySelector('#bottom-dock')!;
     this.welcomeModalEl = this.root.querySelector('#welcome-modal')!;
@@ -197,20 +231,65 @@ export class GameHud {
       this.cb.onReset();
     });
 
+    this.minimapToggleEl.addEventListener('click', () => {
+      this.minimapOpen = !this.minimapOpen;
+      this.minimapBodyEl.classList.toggle('hidden', !this.minimapOpen);
+      this.minimapToggleEl.textContent = this.minimapOpen ? '−' : '＋';
+      this.minimapToggleEl.title = this.minimapOpen ? 'ミニマップを折りたたむ' : 'ミニマップを開く';
+    });
+
+    let minimapDragging = false;
+    const jumpFromEvent = (e: PointerEvent): void => {
+      const rect = this.minimapCanvasEl.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      this.cb.onJumpCamera(nx * MAP_SIZE, ny * MAP_SIZE);
+    };
+    this.minimapCanvasEl.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      minimapDragging = true;
+      this.minimapCanvasEl.setPointerCapture(e.pointerId);
+      jumpFromEvent(e);
+    });
+    this.minimapCanvasEl.addEventListener('pointermove', (e) => {
+      if (!minimapDragging) return;
+      jumpFromEvent(e);
+    });
+    const endMiniDrag = (): void => {
+      minimapDragging = false;
+    };
+    this.minimapCanvasEl.addEventListener('pointerup', endMiniDrag);
+    this.minimapCanvasEl.addEventListener('pointercancel', endMiniDrag);
+
     this.buildBottomDock();
+  }
+
+  getMinimapCanvas(): HTMLCanvasElement | null {
+    return this.minimapOpen ? this.minimapCanvasEl : null;
   }
 
   private buildBottomDock(): void {
     this.bottomDockEl.innerHTML = '';
 
+    const dividerBefore = new Set<BuildingType>(['harvester', 'cannon']);
     for (const def of BUILDING_LIST) {
+      if (dividerBefore.has(def.type)) {
+        const div = document.createElement('div');
+        div.className = 'dock-divider';
+        this.bottomDockEl.appendChild(div);
+      }
+
       const btn = document.createElement('button');
       btn.className = 'tool-btn';
       btn.dataset.tool = def.type;
       btn.title = `${def.name}: ${def.description}`;
+      const emoji = BUILDING_EMOJI[def.type] ?? '✨';
       btn.innerHTML = `
         <span class="tool-hotkey">${def.hotkey}</span>
-        <span class="tool-swatch" style="background:${def.accentColor}"></span>
+        <span class="tool-icon" style="background:${def.accentColor}26">${emoji}</span>
         <span class="tool-name">${def.shortName}</span>
         <span class="tool-cost">${def.costStars === 0 ? '無料' : `${def.costStars}✨`}</span>
       `;
@@ -218,11 +297,15 @@ export class GameHud {
       this.bottomDockEl.appendChild(btn);
     }
 
-    const extras: Array<{ id: 'inspect' | 'demolish' | 'rotate' | 'center'; label: string; key: string; swatch: string }> = [
-      { id: 'inspect', label: '確認', key: 'Q', swatch: '#38BDF8' },
-      { id: 'rotate', label: '回転', key: 'R', swatch: '#FBBF24' },
-      { id: 'demolish', label: '撤去', key: 'X', swatch: '#F43F5E' },
-      { id: 'center', label: '発射台', key: 'H', swatch: '#F472B6' },
+    const actionDivider = document.createElement('div');
+    actionDivider.className = 'dock-divider';
+    this.bottomDockEl.appendChild(actionDivider);
+
+    const extras: Array<{ id: 'inspect' | 'demolish' | 'rotate' | 'center'; label: string; key: string; swatch: string; emoji: string }> = [
+      { id: 'inspect', label: '確認', key: 'Q', swatch: '#38BDF8', emoji: '🔍' },
+      { id: 'rotate', label: '回転', key: 'R', swatch: '#FBBF24', emoji: '🔄' },
+      { id: 'demolish', label: '撤去', key: 'X', swatch: '#F43F5E', emoji: '🗑️' },
+      { id: 'center', label: '発射台', key: 'H', swatch: '#F472B6', emoji: '🚀' },
     ];
 
     for (const ex of extras) {
@@ -233,7 +316,7 @@ export class GameHud {
       }
       btn.innerHTML = `
         <span class="tool-hotkey">${ex.key}</span>
-        <span class="tool-swatch" style="background:${ex.swatch}"></span>
+        <span class="tool-icon" style="background:${ex.swatch}26">${ex.emoji}</span>
         <span class="tool-name">${ex.label}</span>
         <span class="tool-cost">操作</span>
       `;

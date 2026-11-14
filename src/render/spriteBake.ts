@@ -164,20 +164,11 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      // Seeds
-      ctx.fillStyle = '#FEF08A';
-      for (const [sx, sy] of [
-        [48, 56],
-        [64, 52],
-        [78, 58],
-        [54, 72],
-        [70, 74],
-        [62, 88],
-      ]) {
-        ctx.beginPath();
-        ctx.ellipse(sx, sy, 2.3, 3.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // Soft rosy blush highlight (smooth, no seed cluster)
+      ctx.fillStyle = 'rgba(255, 228, 230, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(66, 74, 15, 18, 0.2, 0, Math.PI * 2);
+      ctx.fill();
 
       // Leaf cap
       ctx.fillStyle = '#4ADE80';
@@ -339,18 +330,10 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.fill();
       ctx.stroke();
 
-      // Pink sprinkles
+      // Single pastel pink star crest (clean swirl, no sprinkle cluster)
       ctx.fillStyle = '#F472B6';
-      for (const [x, y] of [
-        [48, 78],
-        [76, 74],
-        [62, 62],
-        [66, 44],
-      ]) {
-        ctx.beginPath();
-        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      drawStarShape(ctx, 64, 68, 10, 4.5, 4);
+      ctx.fill();
       break;
     }
 
@@ -384,7 +367,7 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
     }
 
     case 'cookie': {
-      // Chocolate chip cookie
+      // Smooth golden iced biscuit with single chocolate star emblem
       ctx.beginPath();
       ctx.arc(cx, 66, 36, 0, Math.PI * 2);
       const kg = ctx.createRadialGradient(54, 54, 6, cx, 66, 38);
@@ -396,18 +379,15 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.lineWidth = 4;
       ctx.stroke();
 
+      ctx.strokeStyle = '#FEF3C7';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, 66, 25, 0, Math.PI * 2);
+      ctx.stroke();
+
       ctx.fillStyle = '#5C2D16';
-      for (const [x, y, r] of [
-        [48, 54, 5.5],
-        [72, 50, 5],
-        [62, 68, 6],
-        [46, 78, 4.5],
-        [78, 76, 5.5],
-      ]) {
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      drawStarShape(ctx, cx, 66, 15, 7, 5);
+      ctx.fill();
       break;
     }
 
@@ -522,19 +502,19 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.fill();
       ctx.stroke();
 
-      // Boba pearls at bottom
-      ctx.fillStyle = '#312E81';
-      for (const [bx, by] of [
-        [54, 92],
-        [64, 93],
-        [74, 92],
-        [59, 85],
-        [69, 85],
-      ]) {
-        ctx.beginPath();
-        ctx.arc(bx, by, 4.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // Smooth brown-sugar caramel swirl band & center star badge
+      ctx.fillStyle = '#5B21B6';
+      ctx.beginPath();
+      ctx.moveTo(45, 82);
+      ctx.quadraticCurveTo(64, 76, 83, 82);
+      ctx.lineTo(80, 100);
+      ctx.lineTo(48, 100);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#FFFDF9';
+      drawStarShape(ctx, 64, 64, 10, 4.5, 4);
+      ctx.fill();
 
       // Lid & Straw
       ctx.fillStyle = '#F472B6';
@@ -657,14 +637,14 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      // Inner honeycomb plate & cyan rivets
+      // Inner honeycomb plate & glowing cyan core star
       ctx.strokeStyle = '#FFF1F2';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const a = (Math.PI / 3) * i - Math.PI / 6;
-        const px = Math.cos(a) * 24;
-        const py = Math.sin(a) * 24;
+        const px = Math.cos(a) * 26;
+        const py = Math.sin(a) * 26;
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
@@ -672,12 +652,8 @@ function paintItemSprite(id: ItemId, size = 128): HTMLCanvasElement {
       ctx.stroke();
 
       ctx.fillStyle = '#38BDF8';
-      for (let i = 0; i < 6; i++) {
-        const a = (Math.PI / 3) * i - Math.PI / 6;
-        ctx.beginPath();
-        ctx.arc(Math.cos(a) * 30, Math.sin(a) * 30, 3.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      drawStarShape(ctx, 0, 0, 12, 5, 4);
+      ctx.fill();
       ctx.restore();
       break;
     }

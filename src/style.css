@@ -232,6 +232,73 @@ body,
   position: relative;
 }
 
+/* Bottom-left cute overview minimap */
+.minimap-card {
+  pointer-events: auto;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 8px 10px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 5;
+}
+
+.minimap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.minimap-toggle {
+  border: 1.5px solid rgba(244, 114, 182, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-main);
+  border-radius: 8px;
+  width: 22px;
+  height: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.minimap-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.minimap-body.hidden {
+  display: none;
+}
+
+#minimap-canvas {
+  display: block;
+  width: 156px;
+  height: 156px;
+  border-radius: 12px;
+  border: 2px solid #f472b6;
+  cursor: crosshair;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.minimap-legend {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
 .side-panel {
   width: 310px;
   max-height: 100%;
@@ -363,12 +430,26 @@ body,
   filter: grayscale(0.45);
 }
 
-.tool-swatch {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  border: 2px solid #5b3a4d;
+.tool-icon {
+  width: 32px;
+  height: 26px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(91, 58, 77, 0.25);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
   margin-bottom: 3px;
+}
+
+.dock-divider {
+  width: 2px;
+  height: 44px;
+  align-self: center;
+  background: rgba(244, 114, 182, 0.35);
+  border-radius: 99px;
+  margin: 0 2px;
+  flex-shrink: 0;
 }
 
 .tool-name {
