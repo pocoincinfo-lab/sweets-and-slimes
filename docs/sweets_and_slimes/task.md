@@ -42,3 +42,9 @@
 - [x] `80×80` 広域マップ拡張・中央工場広場 (`26..54`) 確保・三日月/リボン/尾根状の有機的資源鉱脈 `paintOrganicVein` 生成 (`src/core/world.ts`, `src/core/simulation.ts`, `src/render/renderer.ts`, `src/main.ts`)
 - [x] 文字数を削ぎ落としたアイコン中心UI（`#hint-strip` / `.minimap-legend` 廃止、アイコン中心ロケットチップ、3ピルステータス、アイコン操作バー、名称省略ドック）＋別窓ホバー解説（`#hover-popover`）実装 (`src/ui/hud.ts`, `src/style.css`, `src/main.ts`)
 - [x] `npm.cmd run build` 成功（`376ms`, 0件エラー）およびブラウザ実機検証（コイン増減・別窓ホバー・UI重なり＆コンソールエラー0件）完了・プッシュ
+
+## Phase 8: 右下メニュー実装・トップHUD再整理
+- [x] トップHUD右側の整理（`.top-right-hud` 新設、常時使う `🍮 おかわりウェーブ` / `⏸️ 一時停止` / `⏩ 倍速` の3ボタンへ集約） (`src/ui/hud.ts`, `src/style.css`)
+- [x] 右下メニューボタン（`⚙️` `#btn-menu`）＆展開メニューパネル（`#menu-panel`: `#menu-stats`＋図鑑/平和モード/効果音/遊び方/セーブ/次Phase/リセットの7項目、`#side-panel` との相互排他＆重なり防止 `max-height`）実装 (`src/ui/hud.ts`, `src/style.css`)
+- [x] メニュー項目ホバー時の別窓左寄せ配置＆開いた状態での `#btn-menu` ツールチップ抑止 (`src/ui/hud.ts`)
+- [x] `npm.cmd run build` 成功（`355ms`, 0件エラー）およびブラウザ実機検証（3ボタン化・メニュー開閉・バッジ切替・図鑑との相互排他・コンソールエラー0件）完了・プッシュ

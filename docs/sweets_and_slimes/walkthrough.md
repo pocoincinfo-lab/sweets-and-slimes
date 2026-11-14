@@ -23,18 +23,21 @@
   - [renderer.ts](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/render/renderer.ts): 画面外カリング付き Canvas 2D 描画（8段階ロケット＆衛星ウイング描画、綿あめ打ち上げ演出、スライム膨張＆表情変化、資源タイルのパステル連結フィールド＆間引きランドマークアイコン描画、および `renderMinimap` による左下ミニマップ描画）
   - AI生成画像: `public/assets/title_banner.png`, `public/assets/rocket_emblem.png`, `public/assets/king_slime_badge.png`
 - **グラスモーフィズムUI＆操作 (`src/ui/`, `src/main.ts`, `src/style.css`)**:
-  - [hud.ts](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/ui/hud.ts), [style.css](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/style.css) & [main.ts](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/main.ts): WASD/右ドラッグ移動、ホイールズーム、左ドラッグ連続L字ベルト＆施設配置、テキスト削減＆アイコン中心UI（`#hint-strip`/ミニマップ凡例文字の廃止、アイコン中心ロケットチップ、3ピル統計バー、アイコン操作バー）、カーソル連動の別窓ホバー解説（`#hover-popover`: UI＆マップ上の施設・資源対応）、折りたたみ式左下「🍓 スイーツマップ」、`🪙` コスト表示＆回転矢印付き下部ドック
+  - [hud.ts](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/ui/hud.ts), [style.css](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/style.css) & [main.ts](file:///c:/Users/kamen/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/factorio-like/src/main.ts): WASD/右ドラッグ移動、ホイールズーム、左ドラッグ連続L字ベルト＆施設配置、テキスト削減＆アイコン中心UI（`#hint-strip`/ミニマップ凡例文字の廃止、アイコン中心ロケットチップ、`.top-right-hud` 内の3ピル統計バー＋常時操作3ボタン `🍮 / ⏸️ / ⏩`）、カーソル連動の別窓ホバー解説（`#hover-popover`: メニュー項目ホバー時はパネル左側に展開）、折りたたみ式左下「🍓 スイーツマップ」、`🪙` コスト表示＆回転矢印付き下部ドック、右下 `⚙️` メニューボタン（`#btn-menu`）＆展開パネル（`#menu-panel`: 生産速度＆満腹数のライブ表示 `#menu-stats`＋図鑑・平和モード・効果音・遊び方・セーブ・次Phase・リセットの7項目、`#side-panel` との相互排他）
 
 ## 3. 検証結果
 1. **型チェック＆本番ビルド (`npm.cmd run build`)**:
    - Factorio級拡張版にて `tsc --noEmit && vite build` がエラー `0` 件で成功（`dist/` バンドル生成完了、`433ms`）。
    - ミニマップ＆ビジュアル改善版にて `tsc --noEmit && vite build` がエラー `0` 件で成功（`359ms`）。
    - 直感UI・ホバー別窓・コイン制・`80×80` 有機マップ版にて `tsc --noEmit && vite build` がエラー `0` 件で成功（`dist/assets/index-WIZ4Xnsf.js 107.74 kB`、`376ms`）。
+   - 右下メニュー・トップHUD再整理版にて `tsc --noEmit && vite build` がエラー `0` 件で成功（`dist/assets/index-oFojhLJ8.js 111.29 kB`、`355ms`）。
 2. **ブラウザ実機検証 (`http://localhost:5173/`)**:
    - `Phase 1/8`・初期コイン `🪙 600` での開始と、未解放施設への `🔒P2` / `🔒P4` バッジ・`🪙2`〜`🪙45` 表示（`"無料"` 表記なし）、`#hint-strip` および `.minimap-legend` 廃止を確認。
    - 中央発射台周辺 (`26..54`) の広い空き地と、`80×80` マップ上の有機的資源鉱脈（三日月/リボン/外周大陸）の描画を確認。
-   - ドックのオーブンボタン・ロケット要求チップ・コイン統計ピル・上部アイコンボタンへのホバーで別窓解説（`#hover-popover`）が重なりなく適切に表示されることを確認。
+   - ドックのオーブンボタン・ロケット要求チップ・コイン統計ピル・メニュー項目へのホバーで別窓解説（`#hover-popover`）が重なりなく適切に表示されることを確認（メニュー項目ホバー時は `#menu-panel` 左側へ配置、`#menu-panel` 開放中は `#btn-menu` 自身のツールチップを抑止）。
    - ベルト配置によるコイン消費（`-2🪙`）および撤去による100%返金（`+2🪙`）を確認。
+   - トップ右HUDが3ピル＋3ボタン（`🍮`/`⏸️`/`⏩ 1x`）に整理され、右下 `#btn-menu` (`⚙️`) がドックやミニマップと干渉せず表示されることを確認。
+   - `#menu-panel` 内のライブ統計表示（`📦 160個/分 ・ 🐾 3匹満腹`）、7項目表示、平和モード／効果音バッジ切替、`#btn-encyc` による `#side-panel` との双方向相互排他＆縦余白（重なり0件）を確認。
    - 図鑑パネル（全15レシピ）、`⏩ 1x / 2x / 5x` 倍速切替、Phase 8 打ち上げカウントダウン＆成功モーダル、ミニマップジャンプ＆折りたたみトグルの動作を確認。
    - **ブラウザコンソールエラー: 0件、ページエラー: 0件、ネットワーク失敗: 0件**。
 
